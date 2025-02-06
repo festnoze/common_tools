@@ -19,7 +19,7 @@ with open(path.join(this_directory, 'README.md'), encoding='utf-8') as f:
 
 setup(
     name='common_tools',
-    version='0.4.6',
+    version='0.4.9',
     description='Common tools for AI and generic needs on file, console, json, ...',
     long_description=long_description,
     long_description_content_type='text/markdown',
@@ -69,7 +69,7 @@ setup(
         'Operating System :: OS Independent',
     ],
     python_requires='>=3.6',
-    include_package_data=True,
+    include_package_data=True,  # Permet d'inclure les fichiers spécifiés dans MANIFEST.in
     package_data={        
         # If any folder contains ressources files (which are not python files, like *.txt files), reference those folders here to include them into the 'common_tools' package:
         'common_tools.prompts': ['**/*'],
