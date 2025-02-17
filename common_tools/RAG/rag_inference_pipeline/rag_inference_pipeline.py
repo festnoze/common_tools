@@ -28,7 +28,7 @@ class RagInferencePipeline:
         self.default_filters = default_filters
 
         # If the metadata descriptions are not provided, generate them from the all the metadata with their values found within the documents
-        if not metadata_descriptions:
+        if not metadata_descriptions and rag.langchain_documents:
             metadata_descriptions = RagFilteringMetadataHelper.auto_generate_metadata_descriptions_from_docs_metadata(rag.langchain_documents, 30)
             
         self.metadata_descriptions = metadata_descriptions
@@ -70,7 +70,7 @@ class RagInferencePipeline:
     async def run_pipeline_dynamic_streaming_async(self, query: Union[str, Conversation], include_bm25_retrieval: bool = False, give_score=True, pipeline_config_file_path: str = 'rag_pipeline_default_config_wo_AG_for_streaming.yaml', format_retrieved_docs_function = None, all_chunks_output:list = []):
         """Run the full rag inference pipeline: use dynamic pipeline until augmented generation which is streamed async"""
         try:
-            analysed_query, retrieved_chunks = await self.run_pipeline_dynamic_but_augmented_generation_async(query, include_bm25_retrieval, give_score, pipeline_config_file_path, format_retrieved_docs_function)
+            analysed_query, retrieved_chunks_list = await self.run_pipeline_dynamic_but_augmented_generation_async(query, include_bm25_retrieval, give_score, pipeline_config_file_path, format_retrieved_docs_function)
         except EndPipelineException as ex:
             yield ex.message
             return
@@ -78,7 +78,8 @@ class RagInferencePipeline:
             yield str(ex)
             return
         
-        async for chunk in self.workflow_concrete_classes['RAGAugmentedGeneration'].rag_augmented_answer_generation_streaming_async(self.rag, query, retrieved_chunks[0], analysed_query, format_retrieved_docs_function):
+        retrieved_chunks = retrieved_chunks_list[0]
+        async for chunk in self.workflow_concrete_classes['RAGAugmentedGeneration'].rag_augmented_answer_generation_streaming_async(self.rag, query, retrieved_chunks, analysed_query, format_retrieved_docs_function):
             all_chunks_output.append(chunk)
             yield chunk
             
@@ -126,11 +127,6 @@ class RagInferencePipeline:
                 # Guardrails result, check it
                 self.check_for_guardrails(result)
 
-    #TODO: not tested
-    def run_pipeline_dynamic_no_streaming_sync(self, query: Union[str, Conversation], include_bm25_retrieval: bool = False, give_score=True, pipeline_config_file_path: str = 'rag_pipeline_default_config_full_no_streaming.yaml', format_retrieved_docs_function = None) -> str:
-        """Run the full rag inference pipeline without streaming async"""
-        return Execute.async_wrapper_to_sync(RagInferencePipeline.run_pipeline_dynamic_no_streaming_async,self, query, include_bm25_retrieval, give_score, pipeline_config_file_path, format_retrieved_docs_function)
-        
     async def run_pipeline_dynamic_no_streaming_async(self, query: Union[str, Conversation], include_bm25_retrieval: bool = False, give_score=True, pipeline_config_file_path: str = 'rag_pipeline_default_config_full_no_streaming.yaml', format_retrieved_docs_function = None) -> str:
         """Run the full rag inference pipeline without streaming async"""
         config = Ressource.load_ressource_file(pipeline_config_file_path, Ressource.rag_configs_package_name)
@@ -169,6 +165,7 @@ class RagInferencePipeline:
         if not guardrails_result:
             raise Exception("Query rejected by guardrails")
         
+    # To test: async wrapper may no works properly
     def run_pipeline_dynamic_streaming_sync(self,
                             query: Union[str, Conversation],
                             include_bm25_retrieval: bool = False,

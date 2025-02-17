@@ -86,6 +86,6 @@ class RAGAugmentedGeneration:
         rag_chain = rag_custom_prompt | llm_or_chain | RunnablePassthrough()
 
         async for chunk in Llm.invoke_as_async_stream('RAG augmented generation', rag_chain, context):
-            chunk_final = chunk.decode('utf-8').replace(Llm.new_line_for_stream_over_http, '\n') if is_stream_decoded else chunk
+            chunk_final = chunk if not is_stream_decoded else chunk.decode('utf-8').replace(Llm.new_line_for_stream_over_http, '\n')
             all_chunks_output.append(chunk_final)
             yield chunk_final 

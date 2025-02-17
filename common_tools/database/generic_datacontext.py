@@ -19,7 +19,7 @@ class GenericDataContext:
     def __init__(self, base_entities, db_path_or_url='database.db', log_queries_to_terminal=False):
         if ':' not in db_path_or_url:
             source_path = os.environ.get("PYTHONPATH").split(';')[-1]
-            db_path_or_url = os.path.join(source_path.replace('/', '\\'), db_path_or_url.replace('/', '\\'))
+            db_path_or_url = os.path.join(source_path.replace('\\', '/'), db_path_or_url.replace('\\', '/')).replace('\\', '/')
         
         self.base_entities = base_entities
         self.db_path_or_url = db_path_or_url
@@ -95,7 +95,21 @@ class GenericDataContext:
         async with self.read_db_async() as session:
             try:
                 results = await session.execute(query)
-                result = results.scalars().first()
+                if selected_columns:
+                    # If only one column selected, return scalar
+                    if len(selected_columns) == 1:
+                        result = results.scalars().first()
+                    else:
+                        # Multiple columns selected
+                        row = results.first()
+                        if row is not None:
+                            result = row
+                        else:
+                            result = None
+                else:
+                    # If no columns are selected, return the entire entity
+                    result = results.scalars().first()
+
                 if fails_if_not_found and not result:
                     raise ValueError(f"No entity found for '{entity_class.__name__}' with the specified filters.")
                 return result
@@ -141,7 +155,9 @@ class GenericDataContext:
                 # Add all entities provided in *args
                 for entity in args:
                     transaction.add(entity)
+                await transaction.commit()
                 return list(args)
+            
             except Exception as e:
                 txt.print(f"/!\\ Fails to add entities: {e}")
                 raise
@@ -159,6 +175,7 @@ class GenericDataContext:
                         setattr(entity, key, value)
 
                 transaction.add(entity)
+                await transaction.commit()
             except Exception as e:
                 txt.print(f"/!\\ Fails to update entity: {e}")
                 raise
@@ -168,10 +185,11 @@ class GenericDataContext:
             try:
                 result = await transaction.execute(select(entity_class).filter(entity_class.id == entity_id))
                 entity = result.scalars().first()
-                if entity:
-                    await transaction.delete(entity)
-                else:
+                if not entity:
                     raise ValueError(f"{entity_class.__name__} not found")
+                
+                await transaction.delete(entity)    
+                await transaction.commit()
             except Exception as e:
                 txt.print(f"/!\\ Fails to delete entity: {e}")
                 raise
@@ -181,3 +199,4 @@ class GenericDataContext:
             # Delete all tables records, tables in the reverse order to avoid foreign key integrity errors
             for table in reversed(self.base_entities.metadata.sorted_tables):
                 await transaction.execute(delete(table))
+            await transaction.commit()

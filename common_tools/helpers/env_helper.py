@@ -13,40 +13,40 @@ class EnvHelper:
     is_env_loaded = False
 
     @staticmethod
-    def get_custom_env_files():
-        return EnvHelper.generic_get_env_variable_value_by_name('CUSTOM_ENV_FILES')
+    def _get_custom_env_files():
+        return EnvHelper.get_env_variable_value_by_name('CUSTOM_ENV_FILES', load_env=False, fails_if_missing=False)
     
     @staticmethod
     def get_openai_api_key():
-        return EnvHelper.generic_get_env_variable_value_by_name('OPENAI_API_KEY')
+        return EnvHelper.get_env_variable_value_by_name('OPENAI_API_KEY')
     
     @staticmethod
     def get_anthropic_api_key():
-        return EnvHelper.generic_get_env_variable_value_by_name('ANTHROPIC_API_KEY')
+        return EnvHelper.get_env_variable_value_by_name('ANTHROPIC_API_KEY')
     
     @staticmethod
     def get_groq_api_key():
-        return EnvHelper.generic_get_env_variable_value_by_name('GROQ_API_KEY')
+        return EnvHelper.get_env_variable_value_by_name('GROQ_API_KEY')
 
     @staticmethod
     def get_pinecone_api_key():
-        return EnvHelper.generic_get_env_variable_value_by_name('PINECONE_API_KEY')
+        return EnvHelper.get_env_variable_value_by_name('PINECONE_API_KEY')
 
     @staticmethod
     def get_pinecone_environment():
-        return EnvHelper.generic_get_env_variable_value_by_name('PINECONE_ENVIRONMENT')
+        return EnvHelper.get_env_variable_value_by_name('PINECONE_ENVIRONMENT')
     
     @staticmethod
     def get_openrouter_api_key():
-        return EnvHelper.generic_get_env_variable_value_by_name('OPENROUTER_API_KEY')
+        return EnvHelper.get_env_variable_value_by_name('OPENROUTER_API_KEY')
 
     @staticmethod
     def get_openrouter_base_url():
-        return EnvHelper.generic_get_env_variable_value_by_name('OPENROUTER_BASE_URL')
+        return EnvHelper.get_env_variable_value_by_name('OPENROUTER_BASE_URL')
     
     @staticmethod
     def get_embedding_model() -> EmbeddingModel:
-        embedding_model_value = EnvHelper.generic_get_env_variable_value_by_name('EMBEDDING_MODEL')
+        embedding_model_value = EnvHelper.get_env_variable_value_by_name('EMBEDDING_MODEL')
         try:
             embedding_model = EmbeddingModel[embedding_model_value]
         except KeyError:
@@ -55,7 +55,7 @@ class EnvHelper:
     
     @staticmethod
     def get_vector_db_type() -> VectorDbType:
-        vector_db_type_str = EnvHelper.generic_get_env_variable_value_by_name('VECTOR_DB_TYPE')
+        vector_db_type_str = EnvHelper.get_env_variable_value_by_name('VECTOR_DB_TYPE')
         try:
             vector_db_type = VectorDbType(vector_db_type_str)
         except KeyError:
@@ -64,11 +64,11 @@ class EnvHelper:
 
     @staticmethod
     def get_vector_db_name():
-        return EnvHelper.generic_get_env_variable_value_by_name('VECTOR_DB_NAME')
+        return EnvHelper.get_env_variable_value_by_name('VECTOR_DB_NAME')
     
     @staticmethod
     def get_BM25_storage_as_db_sparse_vectors() -> bool:
-        BM25_storage_as_db_sparse_vectors_str = EnvHelper.generic_get_env_variable_value_by_name('BM25_STORAGE_AS_DB_SPARSE_VECTORS')
+        BM25_storage_as_db_sparse_vectors_str = EnvHelper.get_env_variable_value_by_name('BM25_STORAGE_AS_DB_SPARSE_VECTORS')
         if BM25_storage_as_db_sparse_vectors_str.lower() == 'false':
             return False
         elif BM25_storage_as_db_sparse_vectors_str.lower() == 'true':
@@ -78,7 +78,7 @@ class EnvHelper:
 
     @staticmethod
     def get_is_common_db_for_sparse_and_dense_vectors() -> bool:
-        is_common_db_for_sparse_and_dense_vectors_str = EnvHelper.generic_get_env_variable_value_by_name('IS_COMMON_DB_FOR_SPARSE_AND_DENSE_VECTORS')
+        is_common_db_for_sparse_and_dense_vectors_str = EnvHelper.get_env_variable_value_by_name('IS_COMMON_DB_FOR_SPARSE_AND_DENSE_VECTORS')
         if is_common_db_for_sparse_and_dense_vectors_str.lower() == 'false':
             return False
         elif is_common_db_for_sparse_and_dense_vectors_str.lower() == 'true':
@@ -123,7 +123,7 @@ class EnvHelper:
 
     @staticmethod
     def _get_llms_json() -> str:
-        return EnvHelper.generic_get_env_variable_value_by_name('LLMS_JSON')  
+        return EnvHelper.get_env_variable_value_by_name('LLMS_JSON')  
     
     @staticmethod
     def _init_load_env():
@@ -134,7 +134,7 @@ class EnvHelper:
 
 
     def _load_custom_env_files():
-        custom_env_files = EnvHelper.get_custom_env_files()
+        custom_env_files = EnvHelper._get_custom_env_files()
         
         # In case no custom additionnal env. files are defined into a 'CUSTOM_ENV_FILES' key of the '.env' file 
         if not custom_env_files:
@@ -147,12 +147,16 @@ class EnvHelper:
             load_dotenv(custom_env_filename)
     
     @staticmethod
-    def generic_get_env_variable_value_by_name(variable_name: str) -> str:
-        if not variable_name in os.environ:
-            EnvHelper._init_load_env()
+    def get_env_variable_value_by_name(variable_name: str, load_env=True, fails_if_missing=True) -> str:
+        if variable_name not in os.environ:
+            if load_env:
+                EnvHelper._init_load_env()
             variable_value: str = os.getenv(variable_name)
             if not variable_value:
-                raise ValueError(f'Variable named: "{variable_name}" is not set in the environment')
+                if fails_if_missing:
+                    raise ValueError(f'Variable named: "{variable_name}" is not set in the environment')
+                else:
+                    return None
             os.environ[variable_name] = variable_value            
         return os.environ[variable_name]
     

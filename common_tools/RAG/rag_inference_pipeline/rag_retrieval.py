@@ -48,16 +48,16 @@ class RagRetrieval:
     
     @staticmethod    
     async def rag_hybrid_retrieval_langchain_async(rag: RagService, analysed_query: QuestionAnalysisBase, metadata_filters: Optional[Union[Operation, Comparison]], include_bm25_retrieval: bool = True, include_contextual_compression: bool = False, include_semantic_retrieval: bool = True, give_score: bool = True, max_retrived_count: int = 20, bm25_ratio: float = 0.2):
-        if metadata_filters and not any(metadata_filters):
-            metadata_filters = None
+        if metadata_filters and not any(metadata_filters): metadata_filters = None
         
-        if include_bm25_retrieval and include_semantic_retrieval:
+        do_hybrid_retrieval = include_bm25_retrieval and include_semantic_retrieval
+        if do_hybrid_retrieval:
             semantic_k_ratio = round(1 - bm25_ratio, 2)
         else:
             semantic_k_ratio = 1 if include_semantic_retrieval else 0
             bm25_ratio = 1 if include_bm25_retrieval else 0
 
-        if rag.vector_db_type == VectorDbType.Pinecone and EnvHelper.get_BM25_storage_as_db_sparse_vectors() and EnvHelper.get_is_common_db_for_sparse_and_dense_vectors():
+        if do_hybrid_retrieval and rag.vector_db_type == VectorDbType.Pinecone and EnvHelper.get_BM25_storage_as_db_sparse_vectors() and EnvHelper.get_is_common_db_for_sparse_and_dense_vectors():
             #metadata_filters_in_pinecone_format = RagFilteringMetadataHelper.translate_langchain_metadata_filters_into_specified_db_type_format(metadata_filters, rag.vector_db_type)
             hybrid_retriever = await RagRetrieval.rag_pinecone_hybrid_retrieval_langchain_async(rag, max_retrived_count, semantic_k_ratio)
             try:

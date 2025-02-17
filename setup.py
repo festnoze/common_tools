@@ -19,14 +19,14 @@ with open(path.join(this_directory, 'README.md'), encoding='utf-8') as f:
 
 setup(
     name='common_tools',
-    version='0.4.9',
+    version='0.4.10',
     description='Common tools for AI and generic needs on file, console, json, ...',
     long_description=long_description,
     long_description_content_type='text/markdown',
     author='Etienne Millerioux',
     author_email='eemillerioux@gmail.com',
     url='https://github.com/festnoze/common_tools',
-    packages=find_packages(),
+    packages=find_packages(where="."),
     install_requires=[
         'python-dotenv',
         'requests',
@@ -75,5 +75,6 @@ setup(
         'common_tools.prompts': ['**/*'],
         'common_tools.rag.configs': ['**/*']
     },
+    package_dir={"": "."},  # Ensure root directory is taken as package directory
     zip_safe=False
 )

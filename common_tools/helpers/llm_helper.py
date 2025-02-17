@@ -175,6 +175,7 @@ class Llm:
 
         async for chunk in llm_or_chain_w_config.astream(input):
             # Analyse specific stream structure upon first chunk: Handle both OpenAI & Ollama types
+            # Not use Llm.get_content() method to avoid to check upon each chunks
             if not has_content_prop:
                 if hasattr(chunk, 'content'): #LangChainAdapterType.OpenAI
                     has_content_prop = True
@@ -191,8 +192,9 @@ class Llm:
                 content_chunks.append(content)
                 content = content.replace('\r\n', '\n')
                 if does_stream_across_http:
-                    content = content.replace('\n', Llm.new_line_for_stream_over_http)
-                yield content.encode('utf-8')
+                    yield content.replace('\n', Llm.new_line_for_stream_over_http).encode('utf-8')
+                else:
+                    yield content
             else:
                 pass
 

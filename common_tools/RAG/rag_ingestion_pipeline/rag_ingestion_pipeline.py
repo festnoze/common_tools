@@ -58,10 +58,10 @@ class RagIngestionPipeline:
                 ]
         return documents_chunks
 
-    def build_vectorstore_from_chunked_docs(self, docs_chunks: list, vector_db_type: VectorDbType, collection_name:str, delete_existing=True) -> any:
+    def add_chunked_docs_to_vectorstore(self, docs_chunks: list, vector_db_type: VectorDbType, collection_name:str, delete_existing=True) -> any:
         """
-        Builds the vector store from chunked documents.
-        Args:
+        Add to the vector store provided chunked documents.
+        Args:add_chunked_docs_to_vectorstore
             chunks (list): List of document chunks to be embedded and stored.
             vector_db_type (VectorDbType, optional): Type of vector database to use. Defaults to 'chroma'.
             collection_name (str, optional): Name of the collection in the vector database. Defaults to 'main'.
@@ -171,7 +171,7 @@ class RagIngestionPipeline:
         total_elapsed_seconds = 0
         insertion_batches = BatchHelper.batch_split_by_size_in_kilo_bytes(all_entries, batch_mega_bytes * 1024)
         for i, batch_entries in enumerate(insertion_batches):
-            txt.print_with_spinner(f"Insert {len(batch_entries)} documents into Pinecone DB. Batch n°{i+1}/{len(insertion_batches)}.")
+            txt.print_with_spinner(f"Inserting {len(batch_entries)} documents into Pinecone DB. Batch n°{i+1}/{len(insertion_batches)}.")
             pinecone_index.upsert(batch_entries)
             total_elapsed_seconds += txt.stop_spinner_replace_text(f"Batch n°{i+1}/{len(insertion_batches)} done. {len(batch_entries)} documents' chunks inserted sucessfully into database.")
 

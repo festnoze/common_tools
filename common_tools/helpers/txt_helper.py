@@ -168,7 +168,7 @@ class txt:
     @staticmethod
     def stop_spinner_replace_text(text=None)-> int:
         if not txt.activate_print:
-            return None
+            return 0
         
         txt.stop_spinner()
         elapsed_str = None 
