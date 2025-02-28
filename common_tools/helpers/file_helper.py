@@ -52,7 +52,7 @@ class file:
         """
         # Ensure the directory exists
         dirpath = os.path.dirname(filepath)
-        if not os.path.exists(dirpath):
+        if dirpath and not os.path.exists(dirpath):
             os.makedirs(dirpath, exist_ok=True)
 
         # Apply policy in case the file already exists

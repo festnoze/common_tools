@@ -101,6 +101,8 @@ class EnvHelper:
 
         # Re-order llms based on specified order
         try:
+            if len(llms_order) > len(llms_list):
+                llms_order = llms_order[:len(llms_list)]
             ordered_llms_list = [llms_list[i - 1] for i in llms_order]
             if len(llms_list) > len(ordered_llms_list):
                 ordered_llms_list.extend([llm for llm in llms_list if llm not in ordered_llms_list])

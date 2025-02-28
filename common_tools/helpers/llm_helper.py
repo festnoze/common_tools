@@ -1,20 +1,22 @@
 import asyncio
 import json
 import time
-from langchain_core.language_models.chat_models import BaseChatModel
 from pydantic import BaseModel, Field
+import inspect
+from typing import AsyncGenerator, TypeVar, Union
+
+from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.output_parsers import StrOutputParser, ListOutputParser, MarkdownListOutputParser, JsonOutputParser, BaseTransformOutputParser
 from langchain_core.runnables import Runnable, RunnableParallel, RunnableSequence
 from langchain.chains.base import Chain
-from langchain.agents import AgentExecutor, create_tool_calling_agent, create_json_chat_agent, tool
+from langchain.agents import AgentExecutor, initialize_agent, create_tool_calling_agent, create_json_chat_agent, tool
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_community.callbacks import get_openai_callback, OpenAICallbackHandler
-from langchain.schema.messages import HumanMessage, AIMessage, SystemMessage
+from langchain.schema.messages import HumanMessage, AIMessage, SystemMessage, FunctionMessage
+#
 from common_tools.helpers.txt_helper import txt
 from common_tools.models.langchain_adapter_type import LangChainAdapterType
 from common_tools.helpers.execute_helper import Execute
-import inspect
-from typing import AsyncGenerator, TypeVar, Union
 
 class Llm:
     # Constants 
@@ -41,7 +43,8 @@ class Llm:
     @staticmethod
     def get_code_block(code_block_type: str, text: str) -> str:
         start_index = text.find(f"```{code_block_type}")
-        end_index = text.rfind("```")        
+        end_index = text.find("```", start_index + len(f"```{code_block_type}"))
+        
         if start_index != -1 and end_index != -1 and start_index != end_index:
             return text[start_index + 3 + len(code_block_type):end_index].strip()
         else:
@@ -137,7 +140,7 @@ class Llm:
         return answers    
     
     @staticmethod
-    async def invoke_llm_with_tools_async(llm_or_chain: Runnable, tools: list[any], input: str) -> str:
+    async def invoke_agent_executor_with_tools_async(llm_or_chain: Runnable, tools: list[any], input: str) -> str:
         prompt = ChatPromptTemplate.from_messages(
             [
                 ("system", "You're a helpful AI assistant. You know which tools use to solve the given user problem."),
@@ -148,7 +151,43 @@ class Llm:
         agent = create_tool_calling_agent(llm_or_chain, tools, prompt)
         agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
         res = await agent_executor.ainvoke({"input": input})
-        return res["output"]
+        return Llm.get_content(res)
+    
+    # To rework, now return the function structure to be called and no additional_kwargs are setted in case of function call + cannot handle multiple function calls
+    # @staticmethod
+    # async def invoke_llm_with_tool_async(llm: BaseChatModel, tools: list[any], input: str) -> str:
+    #     prompt = ChatPromptTemplate.from_messages(
+    #         [
+    #             ("system", "You're a helpful AI assistant. You know which tools to use to solve the given user problem."),
+    #             ("human", "{input}"),
+    #             MessagesPlaceholder("agent_scratchpad")
+    #         ]
+    #     )
+
+    #     agent_scratchpad = []
+    #     llm_with_tools = llm.bind_tools(tools)
+    #     messages = await prompt.aformat_messages(input=input, agent_scratchpad=agent_scratchpad)
+       
+    #     while True:
+    #         response = await llm_with_tools.ainvoke(messages)
+
+    #         if response.additional_kwargs and "function_call" in response.additional_kwargs:
+    #             function_call = response.additional_kwargs["function_call"]
+    #             tool_name = function_call["name"]
+    #             tool_args = function_call["arguments"]
+
+    #             tool = next((t for t in tools if t.name == tool_name), None)
+    #             if tool is None:
+    #                 raise ValueError(f"Tool '{tool_name}' not found.")
+
+    #             tool_response = await tool.ainvoke(tool_args)
+
+    #             function_message = FunctionMessage(content=str(tool_response), name=tool_name)
+    #             agent_scratchpad.append(function_message)
+
+    #         else:
+    #             # If no tool was called, return the LLM's response
+    #             return response.content
 
     @staticmethod
     async def invoke_json_llm_with_tools_async(llm_or_chain: Runnable, tools: list[any], input: str) -> str:
@@ -164,7 +203,7 @@ class Llm:
         agent = create_json_chat_agent(llm_or_chain, tools, ChatPromptTemplate.from_messages([("human", "{input}")]))
         agent_executor = AgentExecutor(agent=agent, tools=tools)
         res = await agent_executor.ainvoke({"input": input})
-        return res["output"]
+        return Llm.get_content(res)
     
     @staticmethod
     async def invoke_as_async_stream(action_name:str, llm_or_chain: Runnable, input, display_console: bool = False, content_chunks:list[str] = None, does_stream_across_http: bool = False):
@@ -206,9 +245,11 @@ class Llm:
     
     @staticmethod
     def extract_json_from_llm_response(response: any) -> str:
+        start_index = -1
+        end_index = -1
         content = Llm.get_content(response)
         content = Llm.get_code_block("json", content)
-        start_index = -1 
+
         first_index_open_curly_brace = content.find('{')
         first_index_open_square_brace = content.find('[')
         last_index_close_curly_brace = content.rfind('}')

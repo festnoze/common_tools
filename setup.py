@@ -19,7 +19,7 @@ with open(path.join(this_directory, 'README.md'), encoding='utf-8') as f:
 
 setup(
     name='common_tools',
-    version='0.4.10',
+    version='0.4.11',
     description='Common tools for AI and generic needs on file, console, json, ...',
     long_description=long_description,
     long_description_content_type='text/markdown',

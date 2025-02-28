@@ -18,7 +18,7 @@ class WordsToolBox:
             nbr (int): The number to convert to words"""
         prompt = f"Convert the number {nbr} to words in french"
         response = WordsToolBox.llm_or_chain.invoke(prompt)
-        return Llm.get_llm_answer_content(response)
+        return Llm.get_content(response)
     
     @tool
     def translate_in_spanish(text: str):
@@ -27,7 +27,7 @@ class WordsToolBox:
             text (str): The text to convert"""
         prompt = f"Convert the following text into spanish: '{text}'"
         response = WordsToolBox.llm_or_chain.invoke(prompt)
-        return Llm.get_llm_answer_content(response)
+        return Llm.get_content(response)
     
     @tool
     def to_lowercase(text):
