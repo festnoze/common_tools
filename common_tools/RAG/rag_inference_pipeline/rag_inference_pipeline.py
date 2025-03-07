@@ -147,7 +147,6 @@ class RagInferencePipeline:
             raise Exception(f"Error in the workflow: {str(ex)}")
         return results
         
-    
     async def run_static_inference_pipeline_but_guardrails_async(self, query:Union[str, Conversation], include_bm25_retrieval: bool = False, give_score=True, format_retrieved_docs_function = None):
         """Run the full rag inference pipeline, but without guardrails"""
         # Pre-treatment

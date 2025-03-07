@@ -209,12 +209,18 @@ class RAGPreTreatment:
 
         # Domain specific extra validity check of metadata filters (if 'domain_specific_metadata_filters_validation_and_correction_async_method' has be defined by caller beforehand)
         metadata_filters_to_validate = await RAGPreTreatment._apply_if_specified_domain_specific_metadata_filters_validation_and_correction_async(metadata_filters_to_validate)
-        print(f"> Metadata filters before validation: '{str(metadata_filters_to_validate)}'")
+        metadata_filters_to_validate_str = str(RagFilteringMetadataHelper.translate_langchain_metadata_filters_into_chroma_db_format(metadata_filters_to_validate))
+        print(f"> Metadata filters before validation: '{metadata_filters_to_validate_str}'")
 
         # Generic validity check of metadata filters keys or values, and remove filters with invalid ones
         validated_metadata_filters = await RagFilteringMetadataHelper.validate_langchain_metadata_filters_against_metadata_descriptions_async(metadata_filters_to_validate, RAGPreTreatment.metadata_descriptions, does_throw_error_upon_failure= False)
-      
-        print(f"> Corrected metadata filters: '{str(validated_metadata_filters)}'")
+        
+        validated_metadata_filters_str = str(RagFilteringMetadataHelper.translate_langchain_metadata_filters_into_chroma_db_format(validated_metadata_filters))
+        if validated_metadata_filters_str != metadata_filters_to_validate_str:
+            print(f"> Corrected metadata filters: '{str(validated_metadata_filters)}'")
+        else:
+            print(f">>> Metadata filters validated without errors. <<<")
+            
         return validated_metadata_filters
 
     @staticmethod
