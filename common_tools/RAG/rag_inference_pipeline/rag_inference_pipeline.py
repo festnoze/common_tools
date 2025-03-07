@@ -1,8 +1,8 @@
 import asyncio
 from typing import Union, Generator
-from langgraph.prebuilt.tool_executor import ToolExecutor
 from langchain.tools.render import format_tool_to_openai_function
 from langchain.agents import Tool
+#from langgraph.prebuilt.tool_executor import ToolExecutor
 from langchain_experimental.utilities import PythonREPL
 
 # Import the task classes from other files
@@ -37,18 +37,18 @@ class RagInferencePipeline:
         pre_treatment_class.default_filters = self.default_filters        #TODO: might be needed to refactor as a singleton for setting app specific filters values?
         self.tools: list = tools
 
-        if tools and any(tools):
-            python_repl = PythonREPL()
-            repl_tool = Tool(
-                name="python_repl",
-                description="Run arbitrary Python code. Get the output with: `print(...)`.",
-                func=python_repl.run,
-            )
-            all_tools = [repl_tool]            
-            additionnal_tools = [format_tool_to_openai_function(t) for t in tools]
-            all_tools.extend(additionnal_tools)
-            self.rag.llm = self.rag.llm.bind_functions(all_tools)
-            self.tool_executor = ToolExecutor(all_tools)
+        # if tools and any(tools):
+        #     python_repl = PythonREPL()
+        #     repl_tool = Tool(
+        #         name="python_repl",
+        #         description="Run arbitrary Python code. Get the output with: `print(...)`.",
+        #         func=python_repl.run,
+        #     )
+        #     all_tools = [repl_tool]            
+        #     additionnal_tools = [format_tool_to_openai_function(t) for t in tools]
+        #     all_tools.extend(additionnal_tools)
+        #     self.rag.llm = self.rag.llm.bind_functions(all_tools)
+        #     self.tool_executor = ToolExecutor(all_tools)
         
     def set_workflow_concrete_classes(self, override_workflow_available_classes):
         if self.workflow_concrete_classes:

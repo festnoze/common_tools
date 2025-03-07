@@ -15,7 +15,7 @@ class WorkflowExecutor:
         elif isinstance(config_or_config_file_path, str) and config_or_config_file_path:
             self.config = file.get_as_yaml(config_or_config_file_path)
         else:
-            raise ValueError('config_or_config_file_path must be a dictionary or a file path to a YAML file.')
+            raise ValueError('"config_or_config_file_path" must be a dictionary or a file path to a valid YAML file defining the workflow steps and structure.')
         
         self.available_classes = available_classes
 
@@ -165,7 +165,6 @@ class WorkflowExecutor:
                 f"With kwargs values: {', '.join(list(kwargs_value.keys()))}.\n"
             )
         raise RuntimeError(error_message) from exception
-
 
     def _prepare_arguments_for_function(self, func, previous_results: list, kwargs_value: dict):
         """

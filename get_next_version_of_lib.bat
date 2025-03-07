@@ -11,13 +11,13 @@ set "pkg_name=%~1"
 
 REM Call get_last_version_of_lib.bat to get the last version string.
 for /f "delims=" %%V in ('call get_last_version_of_lib.bat %pkg_name%') do set "last_version=%%V"
-echo Last version for %pkg_name% is: %last_version%
+echo Last existing version for %pkg_name% is: %last_version%
 
 REM If no previous version exists, use a default (for example, major=0, minor=4, patch=0)
 if "%last_version%"=="0" (
     set "major=0"
     set "minor=5"
-    set "patch=0"
+    set "patch=10"
 ) else (
     REM Assume last_version is in the format major.minor.patch
     for /f "tokens=1-3 delims=." %%a in ("%last_version%") do (
