@@ -75,7 +75,7 @@ class RagRetrieval:
             print('/!\\ >> Hybid retrieval returns no documents. Retrying without any metadata filters.')
             return await RagRetrieval.rag_hybrid_retrieval_langchain_async(rag, analysed_query, None, include_bm25_retrieval, include_contextual_compression, include_semantic_retrieval, give_score, max_retrived_count, bm25_ratio)
 
-        # Remove duplicate chunks
+        # Remove duplicate chunks TODO: shouldn't happends, analyse why (duplicates also happens on pinecone w/o hybrid retriever returns twice dense and sparse vectors)
         unique_chunks = []
         seen_ids = set()
         for chunk in retrieved_chunks:
@@ -83,7 +83,7 @@ class RagRetrieval:
                 seen_ids.add(chunk.metadata['id'])
                 unique_chunks.append(chunk)
         retrieved_chunks = unique_chunks
-        
+
         # Remove related ids from metadata if present.
         # (Those ids can be used for RAG graph, but are useless later, as for augmented generation. Limit token usage).
         if any(retrieved_chunks) and "rel_ids" in retrieved_chunks[0].metadata: 
