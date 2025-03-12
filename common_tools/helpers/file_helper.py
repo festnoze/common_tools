@@ -60,13 +60,14 @@ class file:
             if file_exists_policy == FileAlreadyExistsPolicy.Override:
                 pass  # continue to overwrite the file
             elif file_exists_policy == FileAlreadyExistsPolicy.Skip:
-                print(f"Info from '{file.write_file.__name__}': File '{filepath}' already exists. Skipping writing as per policy.")
+                print(f"Info from '{file.write_file.__name__}': File '{filepath}' already exists. Skipped writing file, as per policy.")
                 return  # skip writing the file
             elif file_exists_policy == FileAlreadyExistsPolicy.AutoRename:
-                filepath = file._get_unique_filename(filepath)
-                print(f"Info from '{file.write_file.__name__}': File '{filepath}' exists. Renaming to '{filepath}' as per policy.")
+                new_filepath = file._get_unique_filename(filepath)
+                print(f"Info from '{file.write_file.__name__}': File '{filepath}' already exists. Renaming to: '{new_filepath}', as per policy.")
+                filepath = new_filepath
             elif file_exists_policy == FileAlreadyExistsPolicy.Fail:
-                raise FileExistsError(f"Error in '{file.write_file.__name__}': File '{filepath}' already exists. Failing as per policy.")
+                raise FileExistsError(f"Error in '{file.write_file.__name__}': File '{filepath}' already exists. Exception thrown, as per policy.")
 
         # Write the content to the file
         with open(filepath, 'w', encoding=encoding) as file_handler:

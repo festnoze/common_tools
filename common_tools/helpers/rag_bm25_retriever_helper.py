@@ -28,7 +28,7 @@ class BM25RetrieverHelper:
         return best_match, best_score
     
     @staticmethod
-    async def find_best_match_bm25_async(reference_values: list[str], value_to_compare: str):
+    def find_best_match_bm25(reference_values: list[str], value_to_compare: str):
         tokenized_corpus = [value.lower().split() for value in reference_values]
         bm25 = BM25Okapi(tokenized_corpus)
         tokenized_query = value_to_compare.lower().split()
