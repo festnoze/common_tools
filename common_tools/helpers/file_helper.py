@@ -16,7 +16,7 @@ class file:
     @staticmethod
     def get_as_str(filename:str, encoding='utf-8-sig', remove_comments= False):
         """
-        Get the specified file content as string (removing '//' or '#' commented lines)
+        Get the specified file content as string (removing '//' commented lines)
 
         Args:
             filename (str): the name of the file in the current directory
@@ -40,7 +40,7 @@ class file:
             return None
             
     @staticmethod
-    def write_file(content: Union[str, dict, list], filepath: str, file_exists_policy: FileAlreadyExistsPolicy = FileAlreadyExistsPolicy.Override, encoding='utf-8'):
+    def write_file(content: Union[str, dict, list], filepath: str, file_exists_policy: FileAlreadyExistsPolicy = FileAlreadyExistsPolicy.Override, encoding='utf-8', allow_unicode: bool = True):
         """
         Writes the content (of type: string, dict or list of dict) to a file specified by path and filename.
 
@@ -195,7 +195,7 @@ class file:
         return json_
     
     @staticmethod
-    def get_as_yaml(file_path:str, skip_commented_lines:bool = True):
+    def get_as_yaml(file_path:str, skip_commented_lines:bool = True, encoding='utf-8'):
         """Load the specified YAML file."""
         if not file_path.endswith('.yaml') and not file_path.endswith('.yml'):
             file_path += '.yaml'
@@ -203,7 +203,7 @@ class file:
             return None
         
         if skip_commented_lines:
-            with open(file_path, 'r') as file:
+            with open(file_path, 'r', encoding=encoding) as file:
                 return yaml.safe_load(file)
         else:
             lines = []

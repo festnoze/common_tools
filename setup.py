@@ -63,6 +63,8 @@ setup(
         'scipy',
         # 'prefect',  # Uncomment if needed for advanced workflows management
         # 'sentence-transformers>=3.2.0',  # Uncomment to add as new LLM models' provider
+        "fuzzywuzzy",
+        "python-Levenshtein"
     ],
     classifiers=[
         'Programming Language :: Python :: 3',
