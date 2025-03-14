@@ -18,7 +18,7 @@ from common_tools.rag.rag_inference_pipeline.rag_post_treatment_tasks import RAG
 from common_tools.helpers.ressource_helper import Ressource
 from common_tools.workflows.workflow_executor import WorkflowExecutor
 from common_tools.models.conversation import Conversation
-from common_tools.rag.rag_inference_pipeline.end_pipeline_exception import EndPipelineException
+from common_tools.workflows.end_workflow_exception import EndWorkflowException
 
 class RagInferencePipeline:
     def __init__(self, rag:RagService, override_workflow_available_classes:dict = None, default_filters:dict = {}, metadata_descriptions = None, tools: list = None):
@@ -71,7 +71,7 @@ class RagInferencePipeline:
         """Run the full rag inference pipeline: use dynamic pipeline until augmented generation which is streamed async"""
         try:
             analysed_query, retrieved_chunks_list = await self.run_pipeline_dynamic_but_augmented_generation_async(query, include_bm25_retrieval, give_score, pipeline_config_file_path, format_retrieved_docs_function)
-        except EndPipelineException as ex:
+        except EndWorkflowException as ex:
             yield ex.message
             return
         except Exception as ex:
@@ -96,7 +96,7 @@ class RagInferencePipeline:
         
         try:
             guardrails_result, retrieved_chunks = await workflow_executor.execute_workflow_async(kwargs_values=kwargs_values)
-        except EndPipelineException as ex:
+        except EndWorkflowException as ex:
             raise ex
         except Exception as ex:
             raise Exception(f"Error in the workflow: {str(ex)}")
@@ -141,7 +141,7 @@ class RagInferencePipeline:
         
         try:
             results = await workflow_executor.execute_workflow_async(kwargs_values=kwargs_values)
-        except EndPipelineException as ex:
+        except EndWorkflowException as ex:
             raise ex
         except Exception as ex:
             raise Exception(f"Error in the workflow: {str(ex)}")

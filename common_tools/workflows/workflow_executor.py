@@ -6,7 +6,7 @@ import types
 from common_tools.helpers.file_helper import file
 from common_tools.helpers.method_decorator_helper import MethodDecorator
 from common_tools.helpers.reflexion_helper import Reflexion
-from common_tools.rag.rag_inference_pipeline.end_pipeline_exception import EndPipelineException
+from common_tools.workflows.end_workflow_exception import EndWorkflowException
 
 class WorkflowExecutor:
     def __init__(self, config_or_config_file_path=None, available_classes:dict={}):
@@ -35,7 +35,7 @@ class WorkflowExecutor:
             try:
                 results = await self.execute_step_async(step, previous_results, kwargs_values, workflow_config)
                 previous_results = results
-            except EndPipelineException as epe:
+            except EndWorkflowException as epe:
                 raise epe
         return results
 
@@ -113,8 +113,8 @@ class WorkflowExecutor:
                 result = func(**func_kwargs)
                 self._add_function_output_names_and_values_to_kwargs(func, result, kwargs_values)
                 yield result
-        except EndPipelineException as epe:
-            raise epe
+        except EndWorkflowException as ewe:
+            raise ewe
         except Exception as e:
             self._raise_fail_func_execution(class_and_function_name, previous_results, kwargs_values, e)
 
@@ -133,7 +133,7 @@ class WorkflowExecutor:
                 result = func(**func_kwargs)
             self._add_function_output_names_and_values_to_kwargs(func, result, kwargs_values)
             return result
-        except EndPipelineException as epe:
+        except EndWorkflowException as epe:
             raise epe   
         except Exception as e:
             self._raise_fail_func_execution(class_and_function_name, previous_results, kwargs_values, e)

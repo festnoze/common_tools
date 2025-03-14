@@ -4,7 +4,7 @@ import inspect
 import asyncio
 from typing import AsyncGenerator, Callable
 from common_tools.helpers.txt_helper import txt
-from common_tools.rag.rag_inference_pipeline.end_pipeline_exception import EndPipelineException
+from common_tools.workflows.end_workflow_exception import EndWorkflowException
 
 class MethodDecorator:
     @staticmethod
@@ -44,7 +44,7 @@ class MethodDecorator:
                     after_invoke(function_name, param_value_message, start_time)
                     return result                
                 # Do not display pipeline ending exceptions, as they're not actual errors, but allow to exit the pipeline early
-                except EndPipelineException as e: 
+                except EndWorkflowException as e: 
                     raise e
                 except Exception as e:
                     fails_upon_invoke(function_name, param_value_message, start_time)
@@ -59,7 +59,7 @@ class MethodDecorator:
                     return result
                 
                 # Do not display pipeline ending exceptions, as they're not actual errors, but allow to exit the pipeline early
-                except EndPipelineException as e: 
+                except EndWorkflowException as e: 
                     raise e
                 except Exception as e:
                     fails_upon_invoke(function_name, param_value_message, start_time)
@@ -74,7 +74,7 @@ class MethodDecorator:
                     after_invoke(function_name, param_value_message, start_time)
 
                 # Do not display pipeline ending exceptions, as they're not actual errors, but allow to exit the pipeline early
-                except EndPipelineException as e: 
+                except EndWorkflowException as e: 
                     raise e
                 except Exception as e:
                     fails_upon_invoke(function_name, param_value_message, start_time)
