@@ -3,7 +3,7 @@ from typing import Optional, Union
 from common_tools.models.vector_db_type import VectorDbType
 from common_tools.models.logical_operator import LogicalOperator
 from common_tools.models.metadata_description import MetadataDescription
-from common_tools.helpers.matching_helper import BM25RetrieverHelper
+from common_tools.helpers.matching_helper import MatchingHelper
 #
 from langchain.schema import Document
 from langchain_community.query_constructors.chroma import ChromaTranslator
@@ -484,7 +484,7 @@ class RagFilteringMetadataHelper:
 
             if search_nearest_value_if_not_found:
                 # Find the nearest match using BM25
-                retrieved_value, retrieval_score = await BM25RetrieverHelper.find_best_match_bm25_async(
+                retrieved_value, retrieval_score = await MatchingHelper.find_best_match_bm25(
                     possible_values, filter_obj.value
                 )
                 # Update the filter value
