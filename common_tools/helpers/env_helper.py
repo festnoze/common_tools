@@ -53,6 +53,14 @@ class EnvHelper:
             raise ValueError(f"Invalid value for 'EMBEDDING_MODEL': '{embedding_model_value}' (cannot be found within 'EmbeddingModel' allowed values)")
         return embedding_model
     
+    def get_embedding_size() -> int:
+        embedding_size_str = EnvHelper.get_env_variable_value_by_name('EMBEDDING_SIZE')
+        try:
+            embedding_size = int(embedding_size_str) if embedding_size_str else 0
+        except ValueError:
+            raise ValueError(f"Invalid value for 'EMBEDDING_SIZE': '{embedding_size_str}' (cannot be converted to an integer)")
+        return embedding_size
+    
     @staticmethod
     def get_vector_db_type() -> VectorDbType:
         vector_db_type_str = EnvHelper.get_env_variable_value_by_name('VECTOR_DB_TYPE')

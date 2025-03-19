@@ -41,7 +41,7 @@ class RagRetrieval:
         
         rag_retrieved_chunks, bm25_retrieved_chunks = Execute.run_sync_functions_in_parallel_threads(
             (RagRetrieval.semantic_vector_retrieval, (rag, QuestionAnalysisBase.get_modified_question(analysed_query), metadata, give_score, max_retrived_count)),
-            (RagRetrieval.bm25_retrieval, (rag,  QuestionAnalysisBase.get_modified_question(analysed_query), metadata, give_score, max_retrived_count)),
+            (RagRetrieval.bm25_retrieval, (rag, QuestionAnalysisBase.get_modified_question(analysed_query), metadata, give_score, max_retrived_count)),
         )
         retained_chunks = RagRetrieval.hybrid_chunks_selection(rag_retrieved_chunks, bm25_retrieved_chunks, give_score, max_retrived_count)
         return retained_chunks
@@ -82,6 +82,9 @@ class RagRetrieval:
             if chunk.metadata['id'] not in seen_ids:
                 seen_ids.add(chunk.metadata['id'])
                 unique_chunks.append(chunk)
+
+        if len(unique_chunks) < len(retrieved_chunks):
+            print(f"/!\\ {len(retrieved_chunks) - len(unique_chunks)} retrieved chunks are duplicate, and has been removed.")
         retrieved_chunks = unique_chunks
 
         # Remove related ids from metadata if present.
@@ -90,7 +93,6 @@ class RagRetrieval:
             for retrieved_chunk in retrieved_chunks:
                 if "rel_ids" in retrieved_chunk.metadata:
                     retrieved_chunk.metadata.pop("rel_ids", None)
-
         return retrieved_chunks    
         
     @staticmethod    

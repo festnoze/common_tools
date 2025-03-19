@@ -85,17 +85,16 @@ class RagInferencePipeline:
             
     async def run_pipeline_dynamic_but_augmented_generation_async(self, query: Union[str, Conversation], include_bm25_retrieval: bool = False, give_score=True, pipeline_config_file_path: str = 'rag_pipeline_default_config_wo_AG_for_streaming.yaml', format_retrieved_docs_function = None):
         config = Ressource.load_ressource_file(pipeline_config_file_path, Ressource.rag_configs_package_name)
-        workflow_executor = WorkflowExecutor(config, self.workflow_concrete_classes)
-        
+        workflow_executor = WorkflowExecutor(config, self.workflow_concrete_classes)      
         kwargs_values = {
             'rag': self.rag,
             'query': query,
             'include_bm25_retrieval': include_bm25_retrieval,
             'give_score': give_score,
-            'format_retrieved_docs_function': format_retrieved_docs_function }
-        
+            'format_retrieved_docs_function': format_retrieved_docs_function }      
         try:
             guardrails_result, retrieved_chunks = await workflow_executor.execute_workflow_async(kwargs_values=kwargs_values)
+        
         except EndWorkflowException as ex:
             raise ex
         except Exception as ex:

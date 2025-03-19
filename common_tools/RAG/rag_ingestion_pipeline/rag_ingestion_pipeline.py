@@ -35,16 +35,20 @@ class RagIngestionPipeline:
     def __init__(self, rag: RagService):
         self.rag_service: RagService = rag
 
-    def chunk_documents(self, documents: list, chunk_size:int = 1000, children_chunk_size= 0) -> list[Document]:
+    def chunk_documents(self, documents: list, children_chunk_size= 0) -> list[Document]:
         """Chunks the provided documents into small pieces"""
         documents_chunks:list[Document] = []
-        if chunk_size > 0:
+        embedding_size = EnvHelper.get_embedding_size()
+
+        if embedding_size != 0:
             txt.print_with_spinner("Splitting documents into chunks...")
-            documents_chunks = RagChunking.split_text_into_chunks(documents, chunk_size, chunk_size/10 if chunk_size != 0 else 0)  
+            documents_chunks = RagChunking.split_text_into_chunks(documents, embedding_size, embedding_size/10 if embedding_size != 0 else 0)  
+            
             txt.stop_spinner_replace_text("Documents successfully split into chunks in ")
             txt.print("Size of the smallest chunk is: " + str(self._get_docs_min_words_count(documents_chunks)) + " words long.")
             txt.print("Size of the biggest chunk is: " + str(self._get_docs_max_words_count(documents_chunks)) + " words long.")
             txt.print("Total count: " + str(len(documents_chunks)) + " chunks.")      
+        
         else:
             if not documents or not any(documents):
                 return None
@@ -222,7 +226,7 @@ class RagIngestionPipeline:
         all_entries = []
         for doc, bm25_vector, dense_vector in zip(chunks, bm25_vectors, all_dense_vectors):            
             bm25_sparse_dict = sparse_vector_embedder.csr_to_pinecone_sparse_vector_dict(bm25_vector) # Convert CSR matrix to Pinecone dictionary
-            doc.metadata["parent_id"] = doc.metadata.get("id", "")  # Add the original id into metadata if exists
+            doc.metadata["parent_id"] = str(doc.metadata.get("doc_id", ""))  # Add the original id into metadata if exists
             doc.metadata["text"] = doc.page_content  # Add the corresponding text content into metadata
 
             # Combine sparse and dense vectors as two fields of a single entry (correspond to Pinecone's structure)
