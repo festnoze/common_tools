@@ -96,6 +96,20 @@ class RagService:
     def load_vectorstore(self, vector_db_path:str = None, embedding: Embeddings = None, vectorstore_type: VectorDbType = VectorDbType('chroma'), vectorstore_name:str = 'main') -> VectorStore:
         try:
             is_cloud_hosted_db = vectorstore_type == VectorDbType.Pinecone # TODO: to generalize
+            is_native_hybrid_search = EnvHelper.get_is_common_db_for_sparse_and_dense_vectors()
+            is_summarized = EnvHelper.get_is_summarized_data()
+            is_questions = EnvHelper.get_is_questions_created_from_data()
+            vectorstore_name_postfix = f"{'-summary' if is_summarized else '-full'}{'-quest' if is_questions else ''}{'-hybrid' if is_native_hybrid_search else ''}"
+            
+            # make the index name specific in case of native hybrid search (both sparse & dense vectors in the same record)
+            if vectorstore_name_postfix:
+                vectorstore_name += vectorstore_name_postfix
+            
+            # Limit the max length of a vectorstore name  an index name is 45 characters in pinecone
+            if len(vectorstore_name) > 45:
+                txt.print(f"/!\\ Vectorstore name: '{vectorstore_name}' is too long (Pinecone index names are 45 characters max.) and has been truncated.")
+                vectorstore_name = vectorstore_name[:45]
+
             vectorstore:VectorStore = None
 
             if not is_cloud_hosted_db:
@@ -107,24 +121,23 @@ class RagService:
                 from langchain_chroma import Chroma
                 #
                 vectorstore = Chroma(persist_directory= vector_db_path, embedding_function= embedding)
-            
+                print(f"✓ Loaded Chroma vectorstore: '{vectorstore_name}'.")
+                
             elif vectorstore_type == VectorDbType.Qdrant:
                 from qdrant_client import QdrantClient
                 from langchain_qdrant import QdrantVectorStore
                 #
                 qdrant_client = QdrantClient(path=vector_db_path)
                 vectorstore = QdrantVectorStore(client=qdrant_client, collection_name=vectorstore_name, embedding=embedding)
-            
+                print(f"✓ Loaded Qdrant vectorstore: '{vectorstore_name}'.")
+                
             elif vectorstore_type == VectorDbType.Pinecone:
                 import pinecone
                 from pinecone import ServerlessSpec
                 from langchain_pinecone import PineconeVectorStore
                 #
                 pinecone_instance = pinecone.Pinecone(api_key= EnvHelper.get_pinecone_api_key()) #, environment= EnvHelper.get_pinecone_environment()                
-                is_native_hybrid_search = EnvHelper.get_is_common_db_for_sparse_and_dense_vectors()
-                if is_native_hybrid_search:
-                    vectorstore_name += '-hybrid' # make the index name specific in case of native hybrid search (both sparse & dense vectors in the same record)
-                
+                                
                 # Create the DB (Pinecone's index) if it doesn't exist yet
                 if vectorstore_name not in pinecone_instance.list_indexes().names():
                     embedding_vector_size = len(self.embedding.embed_query("test"))                    
@@ -143,10 +156,10 @@ class RagService:
                         time.sleep(1)
                     
                 pinecone_index = pinecone_instance.Index(name=vectorstore_name)
-                print(f"Loaded Pinecone vectorstore: '{vectorstore_name}' index, containing " + str(pinecone_index.describe_index_stats()['total_vector_count']) + " vectors total.")
+                print(f"✓ Loaded Pinecone vectorstore: '{vectorstore_name}' index, containing " + str(pinecone_index.describe_index_stats()['total_vector_count']) + " vectors total.")
                 vectorstore = PineconeVectorStore(index=pinecone_index, embedding=self.embedding)
             return vectorstore
         
         except Exception as e:
-            txt.print(f"/!\\ Loading vectorstore fails /!\\: {e}")
+            txt.print(f"/!\\ ERROR Loading vectorstore named: '{vectorstore_name}' /!\\: {e}")
             return None

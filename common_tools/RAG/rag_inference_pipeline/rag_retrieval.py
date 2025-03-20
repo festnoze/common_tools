@@ -18,15 +18,14 @@ from langchain_core.structured_query import (
 )
 
 # internal common tools imports
-from common_tools.helpers.txt_helper import txt
 from common_tools.helpers.execute_helper import Execute
-from common_tools.models.conversation import Conversation
 from common_tools.helpers.rag_filtering_metadata_helper import RagFilteringMetadataHelper
-from common_tools.models.question_analysis_base import QuestionAnalysisBase
-from common_tools.rag.rag_service import RagService
-from common_tools.models.vector_db_type import VectorDbType
-from common_tools.rag.rag_ingestion_pipeline.sparse_vector_embedding import SparseVectorEmbedding
 from common_tools.helpers.env_helper import EnvHelper
+from common_tools.models.conversation import Conversation
+from common_tools.models.question_analysis_base import QuestionAnalysisBase
+from common_tools.models.vector_db_type import VectorDbType
+from common_tools.rag.rag_service import RagService
+from common_tools.rag.rag_ingestion_pipeline.sparse_vector_embedding import SparseVectorEmbedding
 
 #from langchain_community.retrievers import PineconeHybridSearchRetriever
 # ... is replaced by our own because the actual langchain code doesn't implement async _aget_relevant_documents method
@@ -151,13 +150,13 @@ class RagRetrieval:
     @staticmethod    
     async def rag_pinecone_hybrid_retrieval_langchain_async(rag: RagService, max_retrived_count: int = 20, semantic_k_ratio: float = 0.2):
         retriever = PineconeHybridSearchRetriever(
-            embeddings=rag.embedding,
-            sparse_encoder=SparseVectorEmbedding(rag.vector_db_base_path), #TODO: use our custom sparse encoder, think to extend
-            index=rag.vectorstore._index,
-            top_k=max_retrived_count,  # Number of documents to retrieve
-            alpha=semantic_k_ratio,  # Balance between dense and sparse vector retrieval
-            namespace=rag.vectorstore._namespace,
-            text_content_key="text",  # Key in the metadata that contains the text
+            embeddings= rag.embedding,
+            sparse_encoder= SparseVectorEmbedding(rag.vector_db_base_path, load_existing_vectorizer_from_file= True), #TODO: use our custom sparse encoder, think to extend
+            index= rag.vectorstore._index,
+            top_k= max_retrived_count,  # Number of documents to retrieve
+            alpha= semantic_k_ratio,  # Balance between dense and sparse vector retrieval
+            namespace= rag.vectorstore._namespace,
+            text_content_key= "text",  # Key in the metadata that contains the text
         )
         return retriever
 

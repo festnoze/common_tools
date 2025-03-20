@@ -9,18 +9,46 @@ from common_tools.helpers.file_helper import file
 from common_tools.helpers.txt_helper import txt
 
 class SparseVectorEmbedding:
-
     vectorizer: TfidfVectorizer = None
     file_base_path:str = None
     sparse_vectorizer_filename:str = "sparse_vectorizer.pkl"
 
-    def __init__(self, file_base_path, k1=1.5, b=0.75):
+    def __init__(self, file_base_path, load_existing_vectorizer_from_file=True, k1=1.5, b=0.75):
         if not SparseVectorEmbedding.file_base_path:
             SparseVectorEmbedding.file_base_path = file_base_path
         self.k1 = k1
         self.b = b
-        self.load_or_create_vectorizer()
         self.avg_doc_length = None  # Stores the average document length after initial embedding
+        
+        if load_existing_vectorizer_from_file:
+            self.load_vectorizer()
+        else:
+            self.create_new_vectorizer()
+    
+    def load_vectorizer(self):
+        if SparseVectorEmbedding.vectorizer: 
+            return
+        if not SparseVectorEmbedding.file_base_path: 
+            raise ValueError("SparseVectorEmbedding.file_base_path is not set. Please set it before loading the vectorizer.")   
+        filepath = os.path.join(SparseVectorEmbedding.file_base_path, SparseVectorEmbedding.sparse_vectorizer_filename)
+        if not file.exists(filepath): 
+            raise ValueError(f"File '{filepath}' not found in {self.load_or_create_vectorizer.__name__}.")
+
+        # Load existing vectorizer from file
+        with open(filepath, 'rb') as f:
+            SparseVectorEmbedding.vectorizer = pickle.load(f)
+        return
+
+    def create_new_vectorizer(self):
+        """ Create a new vectorizer (remove the existing *.pkl file if exists). """
+        if SparseVectorEmbedding.vectorizer: return
+        if not SparseVectorEmbedding.file_base_path: raise ValueError("SparseVectorEmbedding.file_base_path is not set. Please set it before creating the vectorizer.")
+        filepath = os.path.join(SparseVectorEmbedding.file_base_path, SparseVectorEmbedding.sparse_vectorizer_filename)
+        
+        SparseVectorEmbedding.vectorizer = TfidfVectorizer(norm=None, smooth_idf=False, use_idf=True)
+        if file.exists(filepath):
+            file.delete_file(filepath)
+            txt.print(f"/!\\ Previous existing Sparse Vectorizer file deleted: '{filepath}'.")
 
     def encode_queries(self, query:str):
         csr_matrix = self.embed_documents_as_csr_matrix_sparse_vectors_for_TF_IDF([query])
@@ -108,14 +136,3 @@ class SparseVectorEmbedding:
         filepath = os.path.join(SparseVectorEmbedding.file_base_path, SparseVectorEmbedding.sparse_vectorizer_filename)
         with open(filepath, 'wb') as f:
             pickle.dump(SparseVectorEmbedding.vectorizer, f)
-
-    def load_or_create_vectorizer(self):
-        if not SparseVectorEmbedding.file_base_path: 
-            raise ValueError("SparseVectorEmbedding.file_base_path is not set. Please set it before loading the vectorizer.")   
-        filepath = os.path.join(SparseVectorEmbedding.file_base_path, SparseVectorEmbedding.sparse_vectorizer_filename)      
-        if not SparseVectorEmbedding.vectorizer:
-            if file.exists(filepath):
-                with open(filepath, 'rb') as f:
-                    SparseVectorEmbedding.vectorizer = pickle.load(f)
-            else:
-                SparseVectorEmbedding.vectorizer = TfidfVectorizer(norm=None, smooth_idf=False, use_idf=True)

@@ -3,6 +3,7 @@ import json
 import os
 from dotenv import load_dotenv
 #
+from common_tools.helpers.txt_helper import txt
 from common_tools.helpers.file_helper import file
 from common_tools.models.llm_info import LlmInfo
 from common_tools.models.vector_db_type import VectorDbType
@@ -76,24 +77,34 @@ class EnvHelper:
     
     @staticmethod
     def get_BM25_storage_as_db_sparse_vectors() -> bool:
-        BM25_storage_as_db_sparse_vectors_str = EnvHelper.get_env_variable_value_by_name('BM25_STORAGE_AS_DB_SPARSE_VECTORS')
-        if BM25_storage_as_db_sparse_vectors_str.lower() == 'false':
-            return False
-        elif BM25_storage_as_db_sparse_vectors_str.lower() == 'true':
-            return True
-        else:
-            raise ValueError(f"Invalid value for 'BM25_STORAGE_AS_DB_SPARSE_VECTORS': '{BM25_storage_as_db_sparse_vectors_str}' (cannot be converted to a boolean)")
+        var_name = 'BM25_STORAGE_AS_DB_SPARSE_VECTORS'
+        str_value = EnvHelper.get_env_variable_value_by_name(var_name)
+        return txt.get_bool_value_out_of_str_value(str_value, var_name)
 
     @staticmethod
     def get_is_common_db_for_sparse_and_dense_vectors() -> bool:
-        is_common_db_for_sparse_and_dense_vectors_str = EnvHelper.get_env_variable_value_by_name('IS_COMMON_DB_FOR_SPARSE_AND_DENSE_VECTORS')
-        if is_common_db_for_sparse_and_dense_vectors_str.lower() == 'false':
-            return False
-        elif is_common_db_for_sparse_and_dense_vectors_str.lower() == 'true':
-            return True
-        else:
-            raise ValueError(f"Invalid value for 'IS_COMMON_DB_FOR_SPARSE_AND_DENSE_VECTORS': '{is_common_db_for_sparse_and_dense_vectors_str}' (cannot be converted to a boolean)")
-
+        var_name = 'IS_COMMON_DB_FOR_SPARSE_AND_DENSE_VECTORS'
+        str_value = EnvHelper.get_env_variable_value_by_name(var_name)
+        return txt.get_bool_value_out_of_str_value(str_value, var_name)
+    
+    @staticmethod
+    def get_is_summarized_data() -> bool:
+        var_name = 'IS_SUMMARIZED_DATA'
+        str_value = EnvHelper.get_env_variable_value_by_name(var_name)
+        return txt.get_bool_value_out_of_str_value(str_value, var_name) 
+    
+    @staticmethod
+    def get_is_questions_created_from_data() -> bool:
+        var_name = 'IS_QUESTIONS_CREATED_FROM_DATA'
+        str_value = EnvHelper.get_env_variable_value_by_name(var_name)
+        return txt.get_bool_value_out_of_str_value(str_value, var_name)
+    
+    @staticmethod
+    def get_is_mixed_questions_and_data() -> bool:
+        var_name = 'IS_MIXED_QUESTIONS_AND_DATA'
+        str_value = EnvHelper.get_env_variable_value_by_name(var_name)
+        return txt.get_bool_value_out_of_str_value(str_value, var_name)
+    
     @staticmethod
     def get_llms_infos_from_env_config(skip_commented_lines:bool = True) -> list[LlmInfo]:
         yaml_env_variables = EnvHelper._get_llm_env_variables(skip_commented_lines)
@@ -142,7 +153,7 @@ class EnvHelper:
             EnvHelper._load_custom_env_files()
             EnvHelper.is_env_loaded = True
 
-
+    @staticmethod
     def _load_custom_env_files():
         custom_env_files = EnvHelper._get_custom_env_files()
         

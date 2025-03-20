@@ -62,7 +62,7 @@ class RagIngestionPipeline:
                 ]
         return documents_chunks
 
-    def add_chunked_docs_to_vectorstore(self, docs_chunks: list, vector_db_type: VectorDbType, collection_name:str, delete_existing=True) -> any:
+    def add_chunked_docs_to_vectorstore(self, docs_chunks: list, vector_db_type: VectorDbType, collection_name:str, delete_existing= True, load_embeddings_from_file_if_exists= True) -> any:
         """
         Add to the vector store provided chunked documents.
         Args:add_chunked_docs_to_vectorstore
@@ -107,7 +107,8 @@ class RagIngestionPipeline:
                 db = self._embed_documents_as_dense_and_sparse_vectors_and_store_into_pinecone_db(
                                 documents= docs_chunks,
                                 pinecone_index= self.rag_service.vectorstore._index,
-                                embedding_model= self.rag_service.embedding)
+                                embedding_model= self.rag_service.embedding,
+                                load_embeddings_from_file_if_exists= load_embeddings_from_file_if_exists,)
         txt.stop_spinner_replace_text(f"Done. {len(docs_chunks)} documents' chunks embedded sucessfully!")
         return db
 
@@ -159,7 +160,7 @@ class RagIngestionPipeline:
         txt.print(f"All documents sucessfully uploaded into Pinecone database in: {total_elapsed_seconds}s.")
         return self.rag_service.vectorstore
     
-    def _embed_documents_as_dense_and_sparse_vectors_and_store_into_pinecone_db(self, documents: list[Document], pinecone_index, embedding_model: Embeddings, batch_mega_bytes: int = 1):
+    def _embed_documents_as_dense_and_sparse_vectors_and_store_into_pinecone_db(self, documents: list[Document], pinecone_index, embedding_model: Embeddings, load_embeddings_from_file_if_exists = True, batch_size_in_mega_bytes: int = 1):
         """
         Embeds documents with BM25 (sparse) and dense embeddings and stores them in Pinecone.
         
@@ -169,11 +170,11 @@ class RagIngestionPipeline:
             bm25_embedding_model: Model or method to compute BM25 sparse vectors.
             dense_embedding_model: Model or method to compute dense embeddings.
         """
-        all_entries = self._load_from_file_or_embed_chunks_as_both_sparse_and_dense_vectors(chunks= documents, embedding_model= embedding_model, load_embeddings_if_already_exists= True, batch_embedding_size= 1000, wait_seconds_btw_batches= None)
+        all_entries = self._perform_embedding_on_chunks_both_as_sparse_and_dense_vectors(chunks= documents, embedding_model= embedding_model, load_embeddings_from_file_if_exists= load_embeddings_from_file_if_exists, batch_embedding_size= 1000, wait_seconds_btw_batches= None)
 
         # Insert the sparse + dense embeddings into the current Pinecone vector database (index)
         total_elapsed_seconds = 0
-        insertion_batches = BatchHelper.batch_split_by_size_in_kilo_bytes(all_entries, batch_mega_bytes * 1024)
+        insertion_batches = BatchHelper.batch_split_by_size_in_kilo_bytes(all_entries, batch_size_in_mega_bytes * 1024)
         for i, batch_entries in enumerate(insertion_batches):
             txt.print_with_spinner(f"Inserting {len(batch_entries)} documents into Pinecone DB. Batch n°{i+1}/{len(insertion_batches)}.")
             pinecone_index.upsert(batch_entries)
@@ -182,50 +183,52 @@ class RagIngestionPipeline:
         txt.print(f"All documents sucessfully uploaded into Pinecone database in: {total_elapsed_seconds}s.")
         return Pinecone(index=pinecone_index, embedding=embedding_model)
 
-    def _load_from_file_or_embed_chunks_as_both_sparse_and_dense_vectors(self, chunks:list[Document], embedding_model:Embeddings, load_embeddings_if_already_exists:bool = True, batch_embedding_size:int = 1000, wait_seconds_btw_batches:float = None) -> list[dict]:
-        # Try to load existing embeddings from file
+    def _perform_embedding_on_chunks_both_as_sparse_and_dense_vectors(self, chunks:list[Document], embedding_model:Embeddings, load_embeddings_from_file_if_exists:bool = True, batch_embedding_size:int = 1000, wait_seconds_btw_batches:float = None) -> list[dict]:
+        # Try to load existing embeddings (spase + dense) from file
         joined_embeddings_filepath = os.path.join(self.rag_service.vector_db_base_path, "joined_sparse_and_dense_embeddings_adapted_to_pinecone.json")
-        if load_embeddings_if_already_exists and file.exists(joined_embeddings_filepath):
+        if load_embeddings_from_file_if_exists and file.exists(joined_embeddings_filepath):
             result = file.get_as_json(joined_embeddings_filepath)
             print(f"!!! Loaded {len(result)} existing entries (sparse + dense vectors) from file: {joined_embeddings_filepath} !!!")
             return result
         
         # Embed all documents as sparse vectors and dense vectors 
         # (as no file containing previous embeddings exists, or if the user ask to recompute the embeddings)
-        sparse_vector_embedder = SparseVectorEmbedding(self.rag_service.vector_db_base_path)
+        sparse_vectorizer = SparseVectorEmbedding(self.rag_service.vector_db_base_path, load_existing_vectorizer_from_file= False)
         all_chunks_contents = [doc.page_content for doc in chunks]
             
         # Step 1: Compute Sparse Vectors (BM25)
-        txt.print_with_spinner(f"Embedding {len(all_chunks_contents)} chunks as BM25 sparse vectors...")   
-        bm25_vectors = sparse_vector_embedder.embed_documents_as_sparse_vectors_for_BM25_initial(all_chunks_contents)
+        txt.print_with_spinner(f"Sparse embedding of {len(all_chunks_contents)} chunks as BM25 in progress ...")
+        sparse_vectors = sparse_vectorizer.embed_documents_as_sparse_vectors_for_BM25_initial(all_chunks_contents)
         txt.stop_spinner_replace_text(f"BM25 sparse vectors embedded sucessfully.")
-        sparse_vector_embedder.save_vectorizer()
+
+        sparse_vectorizer.save_vectorizer()
+        txt.print(f"Sparse vectorizer saved in: {sparse_vectorizer.file_base_path}.")
 
         # Step 2: Compute Dense Vectors
         dense_vectors_filepath = os.path.join(self.rag_service.vector_db_base_path, "dense_vectors.npy")
-        all_dense_vectors = []
-        if load_embeddings_if_already_exists and file.exists(dense_vectors_filepath):
+        dense_vectors = []
+        if load_embeddings_from_file_if_exists and file.exists(dense_vectors_filepath):
             dense_vectors_array = np.load(dense_vectors_filepath)
-            all_dense_vectors = dense_vectors_array.tolist()
-            txt.print(f"!!! Loaded {len(all_dense_vectors)} existing dense vectors from file: {dense_vectors_filepath} !!!")
+            dense_vectors = dense_vectors_array.tolist()
+            txt.print(f"!!! Loaded {len(dense_vectors)} existing dense vectors from file: {dense_vectors_filepath} !!!")
         else:
             total_elapsed_seconds = 0
             batchs = BatchHelper.batch_split_by_count(all_chunks_contents, batch_embedding_size)
             for i, batch_chunks_contents in enumerate(batchs):
                 txt.print_with_spinner(f"Embedding dense vectors: Batch n°{i+1}/{len(batchs)}: {len(batch_chunks_contents)} documents")
                 batch_dense_vectors = embedding_model.embed_documents(batch_chunks_contents)
-                all_dense_vectors.extend(batch_dense_vectors)
+                dense_vectors.extend(batch_dense_vectors)
                 if wait_seconds_btw_batches: 
                     time.sleep(wait_seconds_btw_batches)
                 total_elapsed_seconds += txt.stop_spinner_replace_text(f"Batch n°{i+1}/{len(batchs)} done. {len(batch_dense_vectors)}/{len(chunks)} dense vectors embedded sucessfully.")
-            dense_vectors_array = np.array(all_dense_vectors)
+            dense_vectors_array = np.array(dense_vectors)
             np.save(dense_vectors_filepath, dense_vectors_array)
             txt.print(f"All dense + sparse vectors sucessfully embedded in: {total_elapsed_seconds}s.")
 
         # Step 3: Prepare joined sparse and dense embedding dict (compatible with Pinecone Entries) - also inc. metadata from the original documents
         all_entries = []
-        for doc, bm25_vector, dense_vector in zip(chunks, bm25_vectors, all_dense_vectors):            
-            bm25_sparse_dict = sparse_vector_embedder.csr_to_pinecone_sparse_vector_dict(bm25_vector) # Convert CSR matrix to Pinecone dictionary
+        for doc, sparse_vector, dense_vector in zip(chunks, sparse_vectors, dense_vectors):            
+            bm25_sparse_dict = sparse_vectorizer.csr_to_pinecone_sparse_vector_dict(sparse_vector) # Convert CSR matrix to Pinecone dictionary
             doc.metadata["parent_id"] = str(doc.metadata.get("doc_id", ""))  # Add the original id into metadata if exists
             doc.metadata["text"] = doc.page_content  # Add the corresponding text content into metadata
 

@@ -292,3 +292,13 @@ class txt:
             except UnicodeDecodeError as e:
                 return text
         return txt.apply_to_all_str(input, handle_latin_encoding_str)
+    
+    @staticmethod
+    def get_bool_value_out_of_str_value(value:str, variable_name:str, fails_if_not_boolean = True) -> bool:    
+        if value.lower() == 'false':
+            return False
+        if value.lower() == 'true':
+            return True
+        if not fails_if_not_boolean:
+            return False
+        raise ValueError(f"Invalid value for '{variable_name}': '{value}' cannot be converted to a boolean value")
