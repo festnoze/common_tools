@@ -39,10 +39,12 @@ class RagIngestionPipeline:
         """Chunks the provided documents into small pieces"""
         documents_chunks:list[Document] = []
         embedding_size = EnvHelper.get_embedding_size()
+        if not documents or not any(documents):
+            return None
 
         if embedding_size != 0:
             txt.print_with_spinner("Splitting documents into chunks...")
-            documents_chunks = RagChunking.split_text_into_chunks(documents, embedding_size, embedding_size/10 if embedding_size != 0 else 0)  
+            documents_chunks = RagChunking.split_text_into_chunks(documents, embedding_size, embedding_size/10)  
             
             txt.stop_spinner_replace_text("Documents successfully split into chunks in ")
             txt.print("Size of the smallest chunk is: " + str(self._get_docs_min_words_count(documents_chunks)) + " words long.")
@@ -50,8 +52,6 @@ class RagIngestionPipeline:
             txt.print("Total count: " + str(len(documents_chunks)) + " chunks.")      
         
         else:
-            if not documents or not any(documents):
-                return None
             if isinstance(documents[0], Document):
                 documents_chunks = documents
             else:
@@ -105,7 +105,7 @@ class RagIngestionPipeline:
                 raise NotImplementedError("Sparse vectors for BM25 are not implemented for Chroma.")
             elif vector_db_type == VectorDbType.Pinecone:
                 db = self._embed_documents_as_dense_and_sparse_vectors_and_store_into_pinecone_db(
-                                documents= docs_chunks,
+                                chunks= docs_chunks,
                                 pinecone_index= self.rag_service.vectorstore._index,
                                 embedding_model= self.rag_service.embedding,
                                 load_embeddings_from_file_if_exists= load_embeddings_from_file_if_exists,)
@@ -160,7 +160,7 @@ class RagIngestionPipeline:
         txt.print(f"All documents sucessfully uploaded into Pinecone database in: {total_elapsed_seconds}s.")
         return self.rag_service.vectorstore
     
-    def _embed_documents_as_dense_and_sparse_vectors_and_store_into_pinecone_db(self, documents: list[Document], pinecone_index, embedding_model: Embeddings, load_embeddings_from_file_if_exists = True, batch_size_in_mega_bytes: int = 1):
+    def _embed_documents_as_dense_and_sparse_vectors_and_store_into_pinecone_db(self, chunks: list[Document], pinecone_index, embedding_model: Embeddings, load_embeddings_from_file_if_exists = True, batch_size_in_mega_bytes: int = 1):
         """
         Embeds documents with BM25 (sparse) and dense embeddings and stores them in Pinecone.
         
@@ -170,7 +170,7 @@ class RagIngestionPipeline:
             bm25_embedding_model: Model or method to compute BM25 sparse vectors.
             dense_embedding_model: Model or method to compute dense embeddings.
         """
-        all_entries = self._perform_embedding_on_chunks_both_as_sparse_and_dense_vectors(chunks= documents, embedding_model= embedding_model, load_embeddings_from_file_if_exists= load_embeddings_from_file_if_exists, batch_embedding_size= 1000, wait_seconds_btw_batches= None)
+        all_entries = self._perform_embedding_on_chunks_both_as_sparse_and_dense_vectors(chunks= chunks, embedding_model= embedding_model, load_embeddings_from_file_if_exists= load_embeddings_from_file_if_exists, batch_embedding_size= 1000, wait_seconds_btw_batches= None)
 
         # Insert the sparse + dense embeddings into the current Pinecone vector database (index)
         total_elapsed_seconds = 0
@@ -229,12 +229,11 @@ class RagIngestionPipeline:
         all_entries = []
         for doc, sparse_vector, dense_vector in zip(chunks, sparse_vectors, dense_vectors):            
             bm25_sparse_dict = sparse_vectorizer.csr_to_pinecone_sparse_vector_dict(sparse_vector) # Convert CSR matrix to Pinecone dictionary
-            doc.metadata["parent_id"] = str(doc.metadata.get("doc_id", ""))  # Add the original id into metadata if exists
             doc.metadata["text"] = doc.page_content  # Add the corresponding text content into metadata
 
             # Combine sparse and dense vectors as two fields of a single entry (correspond to Pinecone's structure)
             entry = {
-                    "id": str(uuid.uuid4()),  # Ensure unique IDs
+                    "id": doc.metadata.get("id", str(uuid.uuid4())),  # Add a unique id for each document
                     "values": dense_vector,  # Pinecone handles dense vectors in the 'values' field
                     "sparse_values": bm25_sparse_dict,  # BM25 sparse vector for hybrid search
                     "metadata": doc.metadata  # Add metadata for filtering

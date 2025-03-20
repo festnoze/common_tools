@@ -32,7 +32,7 @@ class DocWithSummaryChunksAndQuestions:
         self.doc_chunks: list[DocChunk] = self.get_typed_chunks_with_their_questions(
                     doc_chunks_with_questions if doc_chunks_with_questions else kwargs.get('doc_chunks')
         )
-        self.metadata = {}
+        self.metadata: dict = kwargs.get('metadata', {})
 
     def __repr__(self) -> str:
         summary_words_count = len(self.doc_summary.replace('\n', ' ').split(' '))
@@ -40,11 +40,12 @@ class DocWithSummaryChunksAndQuestions:
         max_chunk_sum_questions_words_count = max([sum([len(question.text.split(' ')) for question in chunk.questions]) for chunk in self.doc_chunks])
         return f"Summary: {summary_words_count} words, {len(self.doc_chunks)} chunks (max. {chunk_max_words_count} words), and {sum([len(chunk.questions) for chunk in self.doc_chunks])} questions (max. words in all questions in chunk: {max_chunk_sum_questions_words_count})."
     
-    def to_dict(self, include_full_doc=True) -> dict:
+    def to_dict(self, include_full_doc=True, include_metadata=True) -> dict:
         doc_dict = {
             'doc_content': self.doc_content if include_full_doc else None,
             'doc_summary': self.doc_summary,
-            'doc_chunks': [chunk.to_dict() for chunk in self.doc_chunks]
+            'doc_chunks': [chunk.to_dict() for chunk in self.doc_chunks],
+            'metadata': self.metadata if include_metadata else None
         }
         return doc_dict
     
@@ -60,14 +61,19 @@ class DocWithSummaryChunksAndQuestions:
         docs = []
         for chunk in self.doc_chunks:
             chunk_content = ''
-            if include_questions:
-                if include_data: chunk_content += '### Questions ###\n'
+            if include_questions and include_data:
+                chunk_content += '### Questions ###\n'
                 for question in chunk.questions:
                     chunk_content += question.text + '\n'
-            if include_data:
-                if include_questions: chunk_content += '### Réponses ###\n'
+                chunk_content += '### Réponses ###\n'
                 chunk_content += chunk.text + '\n'
-            docs.append(Document(page_content=chunk_content, metadata=self.metadata))
+                docs.append(Document(page_content=chunk_content, metadata=self.metadata))
+            else:
+                if include_questions: 
+                    for question in chunk.questions:
+                        docs.append(Document(page_content=question.text, metadata=self.metadata))
+                if include_data:
+                    docs.append(Document(page_content=chunk.text, metadata=self.metadata))
         return docs
     
     def get_typed_chunks_with_their_questions(self, chunks_and_questions_dict: Union[dict, list[DocChunk]]) -> list[DocChunk]:

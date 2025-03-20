@@ -1,4 +1,5 @@
 
+import uuid
 from langchain_core.documents import Document
 from langchain.text_splitter import CharacterTextSplitter, RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import TextLoader
@@ -14,8 +15,15 @@ class RagChunking:
             if isinstance(document, dict):
                 document = Document(page_content=document.get('page_content', ''), metadata=document.get('metadata', {}))
             chunks_content = txt_splitter.split_text(document.page_content)
-            chunks = [Document(page_content=chunk, metadata=document.metadata) for chunk in chunks_content]
-            all_chunks.extend(chunks)
+            doc_chunks = [Document(page_content=chunk, metadata=document.metadata) for chunk in chunks_content]
+            
+            # Set each chunk metadata 'id' to a new UUID, or to 'doc_id' if single chunk
+            if len(doc_chunks) == 1:
+                doc_chunks[0].metadata['id'] = document.metadata.get('doc_id', str(uuid.uuid4()))
+            else:
+                for chunk in doc_chunks:
+                    chunk.metadata['id'] = str(uuid.uuid4())
+            all_chunks.extend(doc_chunks)
 
         # Ensure chunks do not exceed the maximum allowed size
         valid_chunks = []
