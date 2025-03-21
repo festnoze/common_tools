@@ -35,7 +35,7 @@ class RagIngestionPipeline:
     def __init__(self, rag: RagService):
         self.rag_service: RagService = rag
 
-    def chunk_documents(self, documents: list, children_chunk_size= 0) -> list[Document]:
+    def chunk_documents(self, documents: list) -> list[Document]:
         """Chunks the provided documents into small pieces"""
         documents_chunks:list[Document] = []
         embedding_size = EnvHelper.get_embedding_size()
@@ -62,10 +62,10 @@ class RagIngestionPipeline:
                 ]
         return documents_chunks
 
-    def add_chunked_docs_to_vectorstore(self, docs_chunks: list, vector_db_type: VectorDbType, collection_name:str, delete_existing= True, load_embeddings_from_file_if_exists= True) -> any:
+    def embed_chunked_docs_then_add_to_vectorstore(self, docs_chunks: list, vector_db_type: VectorDbType, collection_name:str, delete_existing= True, load_embeddings_from_file_if_exists= True) -> any:
         """
-        Add to the vector store provided chunked documents.
-        Args:add_chunked_docs_to_vectorstore
+        Add to the vector store provided chunked documents, after embedding them.
+        Args:embed_chunked_docs_then_add_to_vectorstore
             chunks (list): List of document chunks to be embedded and stored.
             vector_db_type (VectorDbType, optional): Type of vector database to use. Defaults to 'chroma'.
             collection_name (str, optional): Name of the collection in the vector database. Defaults to 'main'.
@@ -108,7 +108,7 @@ class RagIngestionPipeline:
                                 chunks= docs_chunks,
                                 pinecone_index= self.rag_service.vectorstore._index,
                                 embedding_model= self.rag_service.embedding,
-                                load_embeddings_from_file_if_exists= load_embeddings_from_file_if_exists,)
+                                load_embeddings_from_file_if_exists= load_embeddings_from_file_if_exists)
         txt.stop_spinner_replace_text(f"Done. {len(docs_chunks)} documents' chunks embedded sucessfully!")
         return db
 
@@ -170,7 +170,13 @@ class RagIngestionPipeline:
             bm25_embedding_model: Model or method to compute BM25 sparse vectors.
             dense_embedding_model: Model or method to compute dense embeddings.
         """
-        all_entries = self._perform_embedding_on_chunks_both_as_sparse_and_dense_vectors(chunks= chunks, embedding_model= embedding_model, load_embeddings_from_file_if_exists= load_embeddings_from_file_if_exists, batch_embedding_size= 1000, wait_seconds_btw_batches= None)
+        # Create (or load) both sparse and dense embeddings for all documents
+        all_entries = self._embed_chunks_as_sparse_and_dense_vectors(
+                                chunks= chunks,
+                                embedding_model= embedding_model,
+                                load_embeddings_from_file_if_exists= load_embeddings_from_file_if_exists,
+                                batch_embedding_size= 1000,
+                                wait_seconds_btw_batches= None)
 
         # Insert the sparse + dense embeddings into the current Pinecone vector database (index)
         total_elapsed_seconds = 0
@@ -183,26 +189,24 @@ class RagIngestionPipeline:
         txt.print(f"All documents sucessfully uploaded into Pinecone database in: {total_elapsed_seconds}s.")
         return Pinecone(index=pinecone_index, embedding=embedding_model)
 
-    def _perform_embedding_on_chunks_both_as_sparse_and_dense_vectors(self, chunks:list[Document], embedding_model:Embeddings, load_embeddings_from_file_if_exists:bool = True, batch_embedding_size:int = 1000, wait_seconds_btw_batches:float = None) -> list[dict]:
+    def _embed_chunks_as_sparse_and_dense_vectors(self, chunks:list[Document], embedding_model:Embeddings, load_embeddings_from_file_if_exists:bool = True, batch_embedding_size:int = 1000, wait_seconds_btw_batches:float = None) -> list[dict]:
         # Try to load existing embeddings (spase + dense) from file
-        joined_embeddings_filepath = os.path.join(self.rag_service.vector_db_base_path, "joined_sparse_and_dense_embeddings_adapted_to_pinecone.json")
+        joined_embeddings_filepath = os.path.join(self.rag_service.vector_db_base_path, self.rag_service.vector_db_full_name + "_joined_sparse_and_dense_embeddings_for_pinecone.json")
         if load_embeddings_from_file_if_exists and file.exists(joined_embeddings_filepath):
-            result = file.get_as_json(joined_embeddings_filepath)
-            print(f"!!! Loaded {len(result)} existing entries (sparse + dense vectors) from file: {joined_embeddings_filepath} !!!")
-            return result
+            all_entries = file.get_as_json(joined_embeddings_filepath)
+            print(f"!!! Loaded {len(all_entries)} existing entries (sparse + dense vectors) from file: {joined_embeddings_filepath} !!!")
+            return all_entries
         
         # Embed all documents as sparse vectors and dense vectors 
         # (as no file containing previous embeddings exists, or if the user ask to recompute the embeddings)
-        sparse_vectorizer = SparseVectorEmbedding(self.rag_service.vector_db_base_path, load_existing_vectorizer_from_file= False)
+        sparse_vectorizer = SparseVectorEmbedding(self.rag_service.vector_db_base_path, load_vectorizer_from_file= False)
         all_chunks_contents = [doc.page_content for doc in chunks]
             
         # Step 1: Compute Sparse Vectors (BM25)
         txt.print_with_spinner(f"Sparse embedding of {len(all_chunks_contents)} chunks as BM25 in progress ...")
         sparse_vectors = sparse_vectorizer.embed_documents_as_sparse_vectors_for_BM25_initial(all_chunks_contents)
-        txt.stop_spinner_replace_text(f"BM25 sparse vectors embedded sucessfully.")
-
         sparse_vectorizer.save_vectorizer()
-        txt.print(f"Sparse vectorizer saved in: {sparse_vectorizer.file_base_path}.")
+        txt.stop_spinner_replace_text(f"BM25 sparse vectors embedded sucessfully. Sparse vectorizer saved in: {sparse_vectorizer.file_base_path}.")
 
         # Step 2: Compute Dense Vectors
         dense_vectors_filepath = os.path.join(self.rag_service.vector_db_base_path, "dense_vectors.npy")
@@ -214,6 +218,7 @@ class RagIngestionPipeline:
         else:
             total_elapsed_seconds = 0
             batchs = BatchHelper.batch_split_by_count(all_chunks_contents, batch_embedding_size)
+            txt.print(f">>> Start embedding as dense vectors: {len(all_chunks_contents)} documents, splitted into {len(batchs)} batches.")
             for i, batch_chunks_contents in enumerate(batchs):
                 txt.print_with_spinner(f"Embedding dense vectors: Batch n°{i+1}/{len(batchs)}: {len(batch_chunks_contents)} documents")
                 batch_dense_vectors = embedding_model.embed_documents(batch_chunks_contents)
@@ -223,7 +228,7 @@ class RagIngestionPipeline:
                 total_elapsed_seconds += txt.stop_spinner_replace_text(f"Batch n°{i+1}/{len(batchs)} done. {len(batch_dense_vectors)}/{len(chunks)} dense vectors embedded sucessfully.")
             dense_vectors_array = np.array(dense_vectors)
             np.save(dense_vectors_filepath, dense_vectors_array)
-            txt.print(f"All dense + sparse vectors sucessfully embedded in: {total_elapsed_seconds}s.")
+            txt.print(f"All dense + sparse vectors sucessfully embedded in: {total_elapsed_seconds:2f}s.")
 
         # Step 3: Prepare joined sparse and dense embedding dict (compatible with Pinecone Entries) - also inc. metadata from the original documents
         all_entries = []

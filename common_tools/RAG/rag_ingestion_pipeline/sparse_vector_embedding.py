@@ -13,14 +13,14 @@ class SparseVectorEmbedding:
     file_base_path:str = None
     sparse_vectorizer_filename:str = "sparse_vectorizer.pkl"
 
-    def __init__(self, file_base_path, load_existing_vectorizer_from_file=True, k1=1.5, b=0.75):
+    def __init__(self, file_base_path, load_vectorizer_from_file=True, k1=1.5, b=0.75):
         if not SparseVectorEmbedding.file_base_path:
             SparseVectorEmbedding.file_base_path = file_base_path
         self.k1 = k1
         self.b = b
         self.avg_doc_length = None  # Stores the average document length after initial embedding
         
-        if load_existing_vectorizer_from_file:
+        if load_vectorizer_from_file:
             self.load_vectorizer()
         else:
             self.create_new_vectorizer()

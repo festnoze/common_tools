@@ -116,7 +116,7 @@ class txt:
         # Ensure only one spinner thread is running at a time
         if txt.is_thread_spinner_alive():
             txt.stop_spinner()
-            txt.print("Previous waiting spinner thread wasn't halted before creating a new one")
+            txt.print("\n/!\\ Previous waiting spinner thread in 'txt.print' hasn't been halted before ask a new one creation.")
 
         txt.stop_event.clear()
         if not txt.waiting_spinner_thread:
