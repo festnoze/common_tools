@@ -2,10 +2,10 @@ import asyncio
 import uuid
 import pytest
 from langchain_core.documents import Document
-from common_tools.workflows.workflow_output_decorator import output_name
+from common_tools.workflows.workflow_output_decorator import workflow_output
 from common_tools.workflows.workflow_executor import WorkflowExecutor
 
-class Test_WorkflowExecutor:
+class TestWorkflowExecutor:
 
     def setup_method(self, method):
         self.config = {}
@@ -68,27 +68,27 @@ class Test_WorkflowExecutor:
         with pytest.raises(RuntimeError, match='Test exception'):
             self.executor.execute_function('faulty_function', [], {})
 
-    def test_execute_function_multiple_output_names(self):
+    def test_execute_function_multiple_workflow_outputs(self):
         kwargs = {'a': 2, 'b': 3}        
-        self.executor.execute_function('workflow_executor_test_methods.step_four_w_2_output_names', [], kwargs)
+        self.executor.execute_function('workflow_executor_test_methods.step_four_w_2_workflow_outputs', [], kwargs)
         assert kwargs['sum'] == 5
         assert kwargs['product'] == 6
 
-    def test_execute_function_with_less_outputs_than_awaited_output_names_failed(self):
+    def test_execute_function_with_less_outputs_than_awaited_workflow_outputs_failed(self):
         kwargs = {'a': 2, 'b': 3}
         with pytest.raises(ValueError, match='Function only returned 1 values, but at least 2 were expected to match with output names decorator.'):
-            self.executor.execute_function('workflow_executor_test_methods.wrong_step_four_w_2_output_names', [], kwargs)
+            self.executor.execute_function('workflow_executor_test_methods.wrong_step_four_w_2_workflow_outputs', [], kwargs)
 
-    def test_execute_function_with_more_outputs_than_awaited_output_names_succeed(self):
+    def test_execute_function_with_more_outputs_than_awaited_workflow_outputs_succeed(self):
         kwargs = {'a': 2, 'b': 3}
-        self.executor.execute_function('workflow_executor_test_methods.step_five_w_2_output_names_and_3_outputs', [], kwargs)
+        self.executor.execute_function('workflow_executor_test_methods.step_five_w_2_workflow_outputs_and_3_outputs', [], kwargs)
         assert kwargs['sum'] == 5
         assert kwargs['product'] == 6
 
     def test_execute_workflow_kwargs_update(self):
         def step_one(a):
             return a + 1
-        step_one._output_name = 'b'
+        step_one._workflow_output = 'b'
         def step_two(b):
             return b * 2
         self.executor.get_static_method = lambda x: step_one if x == 'step_one' else step_two
@@ -101,8 +101,8 @@ class Test_WorkflowExecutor:
     def test_update_kwargs_with_no_return_info(self):
         def dummy_function(a):
             return a * 2
-        self.executor._add_function_output_names_and_values_to_kwargs(dummy_function, 4, {})
-        # Should not update kwargs_values since no output_name is set
+        self.executor._add_function_workflow_outputs_and_values_to_kwargs(dummy_function, 4, {})
+        # Should not update kwargs_values since no workflow_output is set
         assert {} == {}  # kwargs_values remains unchanged
 
     def test_execute_function_async_with_sync_function(self):
@@ -438,25 +438,25 @@ class Test_WorkflowExecutor:
         param_annotation = list[Document]
         assert WorkflowExecutor.is_matching_type_and_subtypes([], param_annotation)
 
-    # Test use of output_name decorator in workflow_executor_test_methods
+    # Test use of workflow_output decorator in workflow_executor_test_methods
     def test_get_function_ouptut_names_with_single_output(self):
-        @output_name('result')
+        @workflow_output('result')
         def dummy_function():
             pass
-        return_info = self.executor._get_function_output_names(dummy_function)
-        assert return_info == {'output_names': ['result']}
+        return_info = self.executor._get_function_workflow_outputs(dummy_function)
+        assert return_info == {'workflow_outputs': ['result']}
 
     def test__function_ouptut_names_with_multiple_outputs(self):
-        @output_name('result1', 'result2')
+        @workflow_output('result1', 'result2')
         def dummy_function():
             pass
-        return_info = self.executor._get_function_output_names(dummy_function)
-        assert return_info == {'output_names': ['result1', 'result2']}
+        return_info = self.executor._get_function_workflow_outputs(dummy_function)
+        assert return_info == {'workflow_outputs': ['result1', 'result2']}
 
     def test_execute_function_single_output(self):
         def dummy_function(a, b):
             return a + b
-        dummy_function._output_name = 'sum'
+        dummy_function._workflow_output = 'sum'
         self.executor.get_static_method = lambda x: dummy_function  # Mock method
         kwargs = {'a': 2, 'b': 3}
         self.executor.execute_function('dummy_function', [], kwargs)
@@ -465,7 +465,7 @@ class Test_WorkflowExecutor:
     def test_execute_function_multiple_outputs(self):
         def dummy_function(a, b):
             return a + b, a * b
-        dummy_function._output_name = ['sum', 'product']
+        dummy_function._workflow_output = ['sum', 'product']
         self.executor.get_static_method = lambda x: dummy_function  # Mock method
         kwargs = {'a': 2, 'b': 3}
         self.executor.execute_function('dummy_function', [], kwargs)
@@ -473,7 +473,7 @@ class Test_WorkflowExecutor:
         assert kwargs['product'] == 6
 
     def test_execute_workflow_with_named_outputs(self):
-        self.executor.get_static_method = lambda x: workflow_executor_test_methods.step_one_w_output_name if x == 'step_one' else workflow_executor_test_methods.step_two_w_output_name  # Mock method
+        self.executor.get_static_method = lambda x: workflow_executor_test_methods.step_one_w_workflow_output if x == 'step_one' else workflow_executor_test_methods.step_two_w_workflow_output  # Mock method
 
         steps_config = ['step_one', 'step_two']
         kwargs = {'a': 2, 'b': 3}
@@ -511,28 +511,28 @@ class workflow_executor_test_methods:
 
     ###############################
     
-    @output_name('sum')
-    def step_one_w_output_name(a, b):
+    @workflow_output('sum')
+    def step_one_w_workflow_output(a, b):
         return a + b
 
-    @output_name('double')
-    def step_two_w_output_name(c):
+    @workflow_output('double')
+    def step_two_w_workflow_output(c):
         return c * 2
         
-    @output_name('product')
-    def step_three_using_output_names(sum, output_name):
-        return sum * output_name
+    @workflow_output('product')
+    def step_three_using_workflow_outputs(sum, workflow_output):
+        return sum * workflow_output
     
-    @output_name('sum', 'product')
-    def step_four_w_2_output_names(a, b):
+    @workflow_output('sum', 'product')
+    def step_four_w_2_workflow_outputs(a, b):
         return a + b, a * b
     
-    @output_name('sum', 'product')
-    def wrong_step_four_w_2_output_names(a, b):
+    @workflow_output('sum', 'product')
+    def wrong_step_four_w_2_workflow_outputs(a, b):
         return a + b
         
-    @output_name('sum', 'product')
-    def step_five_w_2_output_names_and_3_outputs(a, b):
+    @workflow_output('sum', 'product')
+    def step_five_w_2_workflow_outputs_and_3_outputs(a, b):
         return a + b, a * b, a - b
 
 

@@ -1,3 +1,4 @@
+from collections import defaultdict
 import os
 import re
 import json
@@ -39,17 +40,13 @@ class RagIngestionPipeline:
         """Chunks the provided documents into small pieces"""
         documents_chunks:list[Document] = []
         embedding_size = EnvHelper.get_embedding_size()
-        if not documents or not any(documents):
-            return None
-
         if embedding_size != 0:
             txt.print_with_spinner("Splitting documents into chunks...")
             documents_chunks = RagChunking.split_text_into_chunks(documents, embedding_size, embedding_size/10)  
-            
-            txt.stop_spinner_replace_text("Documents successfully split into chunks in ")
-            txt.print("Size of the smallest chunk is: " + str(self._get_docs_min_words_count(documents_chunks)) + " words long.")
-            txt.print("Size of the biggest chunk is: " + str(self._get_docs_max_words_count(documents_chunks)) + " words long.")
-            txt.print("Total count: " + str(len(documents_chunks)) + " chunks.")      
+
+            # Set new metadata id for each document which has been chunked
+            RagIngestionPipeline._set_new_unique_id_to_chunked_docs(documents_chunks)          
+            txt.stop_spinner_replace_text("Documents successfully split into chunks in " + str(len(documents_chunks)) + " chunks.")      
         
         else:
             if isinstance(documents[0], Document):
@@ -62,7 +59,19 @@ class RagIngestionPipeline:
                 ]
         return documents_chunks
 
-    def embed_chunked_docs_then_add_to_vectorstore(self, docs_chunks: list, vector_db_type: VectorDbType, collection_name:str, delete_existing= True, load_embeddings_from_file_if_exists= True) -> any:
+    def _set_new_unique_id_to_chunked_docs(documents_chunks: list[Document]) -> None:
+        doc_id_to_docs = defaultdict(list)
+        for doc in documents_chunks:
+            doc_id = doc.metadata.get('doc_id')
+            if doc_id is not None:
+                doc_id_to_docs[doc_id].append(doc)
+
+        for docs in doc_id_to_docs.values():
+            if len(docs) > 1:
+                for doc in docs:
+                    doc.metadata['id'] = str(uuid.uuid4())
+
+    def embed_chunks_then_add_to_vectorstore(self, docs_chunks: list, vector_db_type: VectorDbType, collection_name:str, delete_existing= True, load_embeddings_from_file_if_exists= True) -> any:
         """
         Add to the vector store provided chunked documents, after embedding them.
         Args:embed_chunked_docs_then_add_to_vectorstore
@@ -93,8 +102,7 @@ class RagIngestionPipeline:
                 db = self._embed_and_store_documents_chunks_as_dense_vectors_into_pinecone_db(chunks= docs_chunks)
             else:
                 raise ValueError("Invalid vector db type: " + vector_db_type.value)
-           
-        
+
         # Store embedded chunks as dense + sparse vectors into vector database
         # Allow performing both semantic and BM25 retrieval from vector database
         # TODO: in the same DB for now, but could be in separates databases in the future, using "IS_COMMON_DB_FOR_SPARSE_AND_DENSE_VECTORS" config key with value = False
@@ -171,7 +179,7 @@ class RagIngestionPipeline:
             dense_embedding_model: Model or method to compute dense embeddings.
         """
         # Create (or load) both sparse and dense embeddings for all documents
-        all_entries = self._embed_chunks_as_sparse_and_dense_vectors(
+        all_entries = self.load_or_compute_sparse_and_dense_vectors_embeddings_for_chunks(
                                 chunks= chunks,
                                 embedding_model= embedding_model,
                                 load_embeddings_from_file_if_exists= load_embeddings_from_file_if_exists,
@@ -189,7 +197,7 @@ class RagIngestionPipeline:
         txt.print(f"All documents sucessfully uploaded into Pinecone database in: {total_elapsed_seconds}s.")
         return Pinecone(index=pinecone_index, embedding=embedding_model)
 
-    def _embed_chunks_as_sparse_and_dense_vectors(self, chunks:list[Document], embedding_model:Embeddings, load_embeddings_from_file_if_exists:bool = True, batch_embedding_size:int = 1000, wait_seconds_btw_batches:float = None) -> list[dict]:
+    def load_or_compute_sparse_and_dense_vectors_embeddings_for_chunks(self, chunks:list[Document], embedding_model:Embeddings, load_embeddings_from_file_if_exists:bool = True, batch_embedding_size:int = 1000, wait_seconds_btw_batches:float = None) -> list[dict]:
         # Try to load existing embeddings (spase + dense) from file
         joined_embeddings_filepath = os.path.join(self.rag_service.vector_db_base_path, self.rag_service.vector_db_full_name + "_joined_sparse_and_dense_embeddings_for_pinecone.json")
         if load_embeddings_from_file_if_exists and file.exists(joined_embeddings_filepath):
@@ -208,7 +216,7 @@ class RagIngestionPipeline:
         sparse_vectorizer.save_vectorizer()
         txt.stop_spinner_replace_text(f"BM25 sparse vectors embedded sucessfully. Sparse vectorizer saved in: {sparse_vectorizer.file_base_path}.")
 
-        # Step 2: Compute Dense Vectors
+        # Step 2: Compute or Load Dense Vectors
         dense_vectors_filepath = os.path.join(self.rag_service.vector_db_base_path, "dense_vectors.npy")
         dense_vectors = []
         if load_embeddings_from_file_if_exists and file.exists(dense_vectors_filepath):
@@ -232,13 +240,24 @@ class RagIngestionPipeline:
 
         # Step 3: Prepare joined sparse and dense embedding dict (compatible with Pinecone Entries) - also inc. metadata from the original documents
         all_entries = []
+        all_entries_ids = []
         for doc, sparse_vector, dense_vector in zip(chunks, sparse_vectors, dense_vectors):            
             bm25_sparse_dict = sparse_vectorizer.csr_to_pinecone_sparse_vector_dict(sparse_vector) # Convert CSR matrix to Pinecone dictionary
             doc.metadata["text"] = doc.page_content  # Add the corresponding text content into metadata
+            entry_id = doc.metadata.get("id", str(uuid.uuid4()))
+            # Make sure that the entry id is unique
+            while entry_id in all_entries_ids:
+                print(f"!!! /!\\ Duplicate entry 'id' detected: '{entry_id}'. New id generated !!!")
+                entry_id = str(uuid.uuid4())
 
+            if doc.metadata["id"] != entry_id:  
+                print(f"!!! /!\\ Entry 'id' changed from '{doc.metadata['id']}' to '{entry_id}' !!!")
+                doc.metadata["id"] = entry_id
+            all_entries_ids.append(entry_id)
+                
             # Combine sparse and dense vectors as two fields of a single entry (correspond to Pinecone's structure)
             entry = {
-                    "id": doc.metadata.get("id", str(uuid.uuid4())),  # Add a unique id for each document
+                    "id": entry_id,  # Add a unique id for each entry
                     "values": dense_vector,  # Pinecone handles dense vectors in the 'values' field
                     "sparse_values": bm25_sparse_dict,  # BM25 sparse vector for hybrid search
                     "metadata": doc.metadata  # Add metadata for filtering

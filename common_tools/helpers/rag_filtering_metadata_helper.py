@@ -484,7 +484,7 @@ class RagFilteringMetadataHelper:
 
             if search_nearest_value_if_not_found:
                 # Find the nearest match using BM25
-                retrieved_value, retrieval_score = await MatchingHelper.find_best_match_bm25(
+                retrieved_value, retrieval_score = MatchingHelper.find_best_match_bm25(
                     possible_values, filter_obj.value
                 )
                 # Update the filter value

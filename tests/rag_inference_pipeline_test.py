@@ -1,3 +1,4 @@
+import pytest
 from unittest.mock import MagicMock, patch
 from common_tools.rag.rag_inference_pipeline.rag_augmented_generation_tasks import RAGAugmentedGeneration
 from common_tools.rag.rag_inference_pipeline.rag_guardrails_tasks import RAGGuardrails

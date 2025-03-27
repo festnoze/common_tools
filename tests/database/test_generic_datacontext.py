@@ -3,7 +3,7 @@ import pytest
 import asyncio
 from uuid import uuid4
 from sqlalchemy import Column, String
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import declarative_base
 #
 from common_tools.database.generic_datacontext import GenericDataContext
 

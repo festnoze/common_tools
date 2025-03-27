@@ -19,6 +19,7 @@ from common_tools.helpers.ressource_helper import Ressource
 from common_tools.workflows.workflow_executor import WorkflowExecutor
 from common_tools.models.conversation import Conversation
 from common_tools.workflows.end_workflow_exception import EndWorkflowException
+from common_tools.helpers.env_helper import EnvHelper
 
 class RagInferencePipeline:
     def __init__(self, rag:RagService, override_workflow_available_classes:dict = None, default_filters:dict = {}, metadata_descriptions = None, tools: list = None):
@@ -27,8 +28,14 @@ class RagInferencePipeline:
         self.set_workflow_concrete_classes(override_workflow_available_classes)
         self.default_filters = default_filters
 
-        # If the metadata descriptions are not provided, generate them from the all the metadata with their values found within the documents
-        if not metadata_descriptions and rag.langchain_documents:
+        # If the metadata descriptions are not provided upon instanciation...
+        # generate them from the metadata with their values found within all the documents
+        if not metadata_descriptions:
+            if not rag.langchain_documents:
+                if EnvHelper.get_BM25_storage_as_db_sparse_vectors():
+                    raise ValueError("The metadata descriptions cannot be generated because langchain_documents isn't set in RAG service, when BM25 retrieval is done through sparse vectors from DB.")
+                else:
+                    raise ValueError("The metadata descriptions cannot be generated because langchain_documents are not loaded in RAG service.")
             metadata_descriptions = RagFilteringMetadataHelper.auto_generate_metadata_descriptions_from_docs_metadata(rag.langchain_documents, 30)
             
         self.metadata_descriptions = metadata_descriptions

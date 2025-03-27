@@ -26,13 +26,13 @@ class DocChunk:
         return {"text": self.text, "questions": [question.to_dict() for question in self.questions]}
     
 class DocWithSummaryChunksAndQuestions:
-    def __init__(self, doc_content: str = None, doc_summary: str = None, doc_chunks_with_questions: Union[dict, list[DocChunk]] = None, **kwargs):
+    def __init__(self, doc_content: str = None, doc_summary: str = None, doc_chunks_with_questions: Union[dict, list[DocChunk]] = None, metadata: dict = None, **kwargs):
         self.doc_content: str = doc_content if doc_content else kwargs.get('doc_content')
         self.doc_summary: str = doc_summary if doc_summary else kwargs.get('doc_summary')
         self.doc_chunks: list[DocChunk] = self.get_typed_chunks_with_their_questions(
                     doc_chunks_with_questions if doc_chunks_with_questions else kwargs.get('doc_chunks')
         )
-        self.metadata: dict = kwargs.get('metadata', {})
+        self.metadata: dict = metadata if metadata else kwargs.get('metadata', {})
 
     def __repr__(self) -> str:
         summary_words_count = len(self.doc_summary.replace('\n', ' ').split(' '))

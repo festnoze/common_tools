@@ -39,8 +39,12 @@ class RagService:
         self.vector_db_path:str = os.path.join(os.path.join(os.path.abspath(vector_db_base_path), self.embedding_model_name), vector_db_type.value)
         #
         self.all_documents_json_file_path = os.path.abspath(os.path.join(vector_db_base_path, documents_json_filename))
-        self.langchain_documents:list[Document] = self.load_raw_langchain_documents(self.all_documents_json_file_path)
         self.vectorstore:VectorStore = self.load_vectorstore(self.vector_db_path, self.embedding, self.vector_db_type, self.vector_db_full_name)
+
+        self.langchain_documents:list[Document] = None
+        is_BM25_docs_stored_in_db = EnvHelper.get_BM25_storage_as_db_sparse_vectors()
+        if not is_BM25_docs_stored_in_db:
+            self.langchain_documents:list[Document] = self.load_raw_langchain_documents(self.all_documents_json_file_path)
 
     def instanciate_embedding(self, embedding_model:EmbeddingModel):
         self.embedding = EmbeddingModelFactory.create_instance(embedding_model)
@@ -83,7 +87,7 @@ class RagService:
   
     def load_raw_langchain_documents(self, filepath:str = None) -> List[Document]:
         if not file.exists(filepath):
-            txt.print(">>> No file found for loading langchain documents. Please generate them first or provide a valid file path.")
+            txt.print(">>> No file found to loading langchain documents for BM25 retrieval. Please generate them first or provide a valid file path.")
             return None
                         
         json_as_str = file.read_file(filepath)
@@ -156,9 +160,9 @@ class RagService:
     def get_vectorstore_full_name(self, vectorstore_base_name):
         is_native_hybrid_search = EnvHelper.get_is_common_db_for_sparse_and_dense_vectors()
         is_summarized = EnvHelper.get_is_summarized_data()
-        is_questions = EnvHelper.get_is_questions_created_from_data()
+        has_questions = EnvHelper.get_is_questions_created_from_data()
 
-        vectorstore_name_postfix = f"{'-summary' if is_summarized else '-full'}{'-quest' if is_questions else ''}{'-hybrid' if is_native_hybrid_search else ''}"
+        vectorstore_name_postfix = f"{'-summary' if is_summarized else '-full'}{'-quest' if has_questions else ''}{'-hybrid' if is_native_hybrid_search else ''}"
             
         # Make the index name specific regarding: native hybrid search (both sparse & dense vectors in the same record), w/ summaries, w/ questions
         vector_db_full_name = vectorstore_base_name + vectorstore_name_postfix
