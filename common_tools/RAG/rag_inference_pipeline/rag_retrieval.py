@@ -22,6 +22,7 @@ from common_tools.helpers.execute_helper import Execute
 from common_tools.helpers.rag_filtering_metadata_helper import RagFilteringMetadataHelper
 from common_tools.helpers.env_helper import EnvHelper
 from common_tools.models.conversation import Conversation
+from common_tools.models.doc_w_summary_chunks_questions import DocWithSummaryChunksAndQuestions
 from common_tools.models.question_analysis_base import QuestionAnalysisBase
 from common_tools.models.vector_db_type import VectorDbType
 from common_tools.rag.rag_service import RagService
@@ -86,12 +87,18 @@ class RagRetrieval:
             print(f"/!\\ {len(retrieved_chunks) - len(unique_chunks)} retrieved chunks are duplicate, and has been removed.")
         retrieved_chunks = unique_chunks
 
-        # Remove related ids from metadata if present.
+        # Remove related ids from retrieved chunks' metadata if any
         # (Those ids can be used for RAG graph, but are useless later, as for augmented generation. Limit token usage).
         if any(retrieved_chunks) and "rel_ids" in retrieved_chunks[0].metadata: 
             for retrieved_chunk in retrieved_chunks:
                 if "rel_ids" in retrieved_chunk.metadata:
                     retrieved_chunk.metadata.pop("rel_ids", None)
+
+        # Remove the part of the text in retrieved chunks that contains questions (if embeded vectors packed both questions and content together)
+        for retrieved_chunk in retrieved_chunks:
+            if DocWithSummaryChunksAndQuestions.answers_title in retrieved_chunk.metadata['text']:
+                retrieved_chunk.metadata['text'] = retrieved_chunk.metadata['text'].split(DocWithSummaryChunksAndQuestions.answers_title, 1)[1]
+
         return retrieved_chunks    
         
     @staticmethod    

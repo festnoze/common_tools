@@ -28,18 +28,16 @@ class Ressource:
         
     @staticmethod
     def replace_variables(prompt: str, variables: dict) -> str:
-        prompt = prompt.replace('{{', '**(*(**').replace('}}', '**)*)**')  # Replace {{ and }} with **((** and **))** to avoid include them in the regex pattern
+        prompt = prompt.replace('{{', '**(*(**').replace('}}', '**)*)**')
         pattern = re.compile(r'\{([^}]+)\}')
         def replacer(match):
             key = match.group(1)
             return variables.get(key, '')
-        # Replace each {*} in variables' values first with the variables' values themselves or empty string
         for variable_key, variable_value in variables.items():
             variables[variable_key] = pattern.sub(replacer, variable_value)
-        # Replace variables in the prompt
         result = pattern.sub(replacer, prompt)
-        return result.replace('**(*(**', '{').replace('**)*)**', '}')  # Replace: '**((**' and '**))**' to '{' and '}'
-
+        return result.replace('**(*(**', '{{').replace('**)*)**', '}}')
+    
     @staticmethod
     def remove_curly_brackets(text:str):
         return Ressource.replace_variables(text, {})

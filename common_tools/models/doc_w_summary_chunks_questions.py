@@ -57,15 +57,18 @@ class DocWithSummaryChunksAndQuestions:
             page_content += self.doc_content + '\n'
         return Document(page_content=page_content, metadata=self.metadata)
     
+    questions_title = '### Questions ###\n'
+    answers_title = '### Réponses ###\n'
+    
     def to_langchain_documents_chunked_summary_and_questions(self, include_data=True, include_questions=True) -> Document:
         docs = []
         for chunk in self.doc_chunks:
             chunk_content = ''
             if include_questions and include_data:
-                chunk_content += '### Questions ###\n'
+                chunk_content += DocWithSummaryChunksAndQuestions.questions_title
                 for question in chunk.questions:
                     chunk_content += question.text + '\n'
-                chunk_content += '### Réponses ###\n'
+                chunk_content += DocWithSummaryChunksAndQuestions.answers_title
                 chunk_content += chunk.text + '\n'
                 docs.append(Document(page_content=chunk_content, metadata=self.metadata))
             else:

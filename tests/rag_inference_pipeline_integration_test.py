@@ -5,7 +5,7 @@ from common_tools.rag.rag_inference_pipeline.rag_inference_pipeline import RagIn
 from common_tools.rag.rag_service import RagService
 from common_tools.models.langchain_adapter_type import LangChainAdapterType
 from common_tools.models.llm_info import LlmInfo
-from common_tools.models.embedding_type import EmbeddingModel
+from common_tools.models.embedding_type import EmbeddingType
 
 class TestRagInferencePipelineIntegration:
 
@@ -25,7 +25,7 @@ class TestRagInferencePipelineIntegration:
 
         with patch.object(RagService, '__init__', return_value=None):
             self.rag_service = RagService()
-            self.rag_service.init_embedding(EmbeddingModel.OpenAI_TextEmbedding3Small)
+            self.rag_service.init_embedding(EmbeddingType.OpenAI_TextEmbedding3Small)
             self.rag_service.init_inference_llm(llms_infos)
             self.rag_service.langchain_documents = docs
             self.rag_service.vectorstore = Chroma.from_documents(documents= docs, embedding = self.rag_service.embedding)

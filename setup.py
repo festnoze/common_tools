@@ -20,7 +20,7 @@ with open(os.path.join(this_directory, 'README.md'), encoding='utf-8') as f:
 setup(
     name='common_tools',
     # HOW TO USE: in cmd, u can do: 'set BUILD_VERSION=0.4.14' to override the version to be built.
-    version=os.environ.get('BUILD_VERSION', '0.5.10'), 
+    version=os.environ.get('BUILD_VERSION', '0.1.0'), 
     description='Common tools for AI and generic needs on file, console, json, ...',
     long_description=long_description,
     long_description_content_type='text/markdown',
@@ -29,6 +29,7 @@ setup(
     url='https://github.com/festnoze/common_tools',
     packages=find_packages(where="."),
     install_requires=[
+        'typer==0.10.0', #  instructor (v0.5.2) requires this upper version
         'python-dotenv',
         'requests',
         'pandas',
@@ -71,7 +72,7 @@ setup(
         'License :: OSI Approved :: MIT License',
         'Operating System :: OS Independent',
     ],
-    python_requires='>=3.6',
+    python_requires='>=3.12',
     include_package_data=True,  # Permet d'inclure les fichiers spécifiés dans MANIFEST.in
     package_data={        
         # If any folder contains ressources files (which are not python files, like *.txt files), reference those folders here to include them into the 'common_tools' package:
