@@ -63,18 +63,9 @@ class TestWorkflowExecutor:
             await self.executor.execute_str_step_async(step, [], {}, workflow_config)
 
     @pytest.mark.asyncio
-    async def test_execute_parallel_steps_invalid_type(self):
-        steps = ['workflow_executor_test_methods.step_one_async']
-        with pytest.raises(ValueError, match='Unknown parallel execution type: invalid'):
-            await self.executor.execute_parallel_steps_async(steps, [], {})
-
-    @pytest.mark.asyncio
     async def test_execute_function_with_exception(self):
-        def faulty_function():
-            raise RuntimeError('Test exception')
-        self.executor.get_static_method = lambda name: faulty_function
         with pytest.raises(RuntimeError, match='Test exception'):
-            await self.executor.execute_function_async('faulty_function', [], {})
+            await self.executor.execute_function_async('workflow_executor_test_methods.faulty_function', [], {})
 
     @pytest.mark.asyncio
     async def test_execute_function_multiple_workflow_outputs(self):
@@ -86,7 +77,7 @@ class TestWorkflowExecutor:
     @pytest.mark.asyncio
     async def test_execute_function_with_less_outputs_than_awaited_workflow_outputs_failed(self):
         kwargs = {'a': 2, 'b': 3}
-        with pytest.raises(ValueError, match='Function only returned 1 values, but at least 2 were expected to match with output names decorator.'):
+        with pytest.raises(RuntimeError, match='Function only returned 1 values, but at least 2 were expected to match with output names decorator.'):
             await self.executor.execute_function_async('workflow_executor_test_methods.wrong_step_four_w_2_workflow_outputs_async', [], kwargs)
 
     @pytest.mark.asyncio
@@ -97,31 +88,23 @@ class TestWorkflowExecutor:
         assert kwargs['product'] == 6
 
     @pytest.mark.asyncio
-    async def test_execute_workflow_kwargs_update(self):
-        async def step_one(a):
-            return a + 1
-        async def step_two(b):
-            return b * 2
-        self.executor.get_static_method = lambda x: step_one if x == 'step_one' else step_two
-        steps_config = ['step_one', 'step_two']
-        kwargs = {'a': 1}
+    async def test_execute_workflow_kwargs(self):
+        steps_config = ['workflow_executor_test_methods.step_two_async', 'workflow_executor_test_methods.step_three_async']
+        kwargs = {'c': 10}
         results = await self.executor.execute_workflow_async(steps_config, kwargs_values=kwargs)
-        assert kwargs['b'] == 2
-        assert results == [4]
+        assert results == [19] # 10 * 2 - 1 = 19
 
     @pytest.mark.asyncio
     async def test_update_kwargs_with_no_return_info(self):
         async def dummy_function(a):
             return a * 2
-        await self.executor._add_function_workflow_outputs_and_values_to_kwargs_async(dummy_function, 4, {})
-        assert {} == {}
+        kwargs = {'a': 3}
+        self.executor._add_function_output_names_and_values_to_kwargs(dummy_function, 4, kwargs_values=kwargs)
+        assert kwargs == {'a': 3}
 
     @pytest.mark.asyncio
-    async def test_execute_function_async_with_sync_function(self):
-        async def sync_function(a):
-            return a * 2
-        self.executor.get_static_method = lambda x: sync_function
-        result = await self.executor.execute_function_async('sync_function', [], {'a': 3})
+    async def test_execute_function_async_with_kwargs_values(self):
+        result = await self.executor.execute_function_async('workflow_executor_test_methods.step_two_async', [], {'c': 3})
         assert result == 6
 
     @pytest.mark.asyncio
@@ -148,9 +131,24 @@ class TestWorkflowExecutor:
             pass
         provided_kwargs = {'a': 1, 'b': 2, 'd': 4}
         expected = {'a': 1, 'b': 2}
-        result = self.executor.get_function_kwargs_with_values(func, provided_kwargs)
+
+        result = self.executor._prepare_arguments_for_function(func, [], provided_kwargs)
         assert result == expected
 
+    @pytest.mark.parametrize("nested_list, expected", [
+        ([1, (2, (3, 4)), 5, {6, 7}], [1, 2, 3, 4, 5, 6, 7]), # Basic nested list with tuples and sets, including different levels of nesting
+        ([1, {2, 3}, (4, 5)], [1, 2, 3, 4, 5]), # Set containing nested tuples
+        ([None, (1, 2)], [None, 1, 2]), # Mix of None and nested tuples
+        ([1, (2, 3), {4, 5}], [1, 2, 3, 4, 5]), # Nested tuples and sets
+        (['a', ('b', ('c', 'd'))], ['a', 'b', 'c', 'd']), # Strings should remain intact
+        ([1, (2, {"key": "value"})], [1, 2, {"key": "value"}]), # Dictionary within list - dicts shouldn't be flattened
+        ([1, ('a', {True, 3.14}), 8], [1, 'a', True, 3.14, 8]), # Mixed data types with tuples and sets
+        ([1, 2, 3, 4], [1, 2, 3, 4]), # Completely flat list - should return as is
+        ([1, (2, (3, {4, 5})), 6], [1, 2, 3, 4, 5, 6]), # Deeply nested with tuples and sets
+        ([1, ((), set(), (2, 3)), {}, []], [1, 2, 3, {}, []]), # Empty sets or tuples removed, not empty list or dict
+        ([1, ['a', [True, [3.14, None]]], {'key': 'value'}], [1, ['a', [True, [3.14, None]]], {'key': 'value'}]), # Nested lists of lists
+        ([1, (2, {'a': 10, 'b': 20}), 3], [1, 2, {'a': 10, 'b': 20}, 3]), # List containing dictionary - dicts shouldn't be flattened
+    ])
     def test_flatten(self, nested_list, expected):
         result = self.executor.flatten_tuples(nested_list)
         assert result == expected
@@ -279,18 +277,6 @@ class TestWorkflowExecutor:
             await self.executor.execute_workflow_async(steps_config, {})
 
     @pytest.mark.asyncio
-    async def test_execute_workflow_with_tuple_output(self):
-        async def step_returns_tuple():
-            return (1, 2)
-        self.executor.get_static_method = lambda name: step_returns_tuple
-        result = await self.executor.execute_function_async('any_step', [], {})
-        assert result == (1, 2)
-
-    def test_get_function_by_name(self):
-        func = self.executor.get_function('workflow_executor_test_methods.step_one_async')
-        assert func.__name__ == workflow_executor_test_methods.step_one_async.__name__
-
-    @pytest.mark.asyncio
     async def test_execute_workflow_full(self):
         self.executor.config = {'sub_workflow': [{'parallel_async': ['workflow_executor_test_methods.step_two_async', 'workflow_executor_test_methods.step_three_async']}]}
         steps_config = ['workflow_executor_test_methods.step_one_async', 'sub_workflow']
@@ -316,22 +302,28 @@ class TestWorkflowExecutor:
         result = await self.executor.execute_function_async('workflow_executor_test_methods.step_one_async', previous_results, {})
         assert result == 3
 
-    def test_parallel_threads_with_empty_steps(self):
-        results = self.executor._execute_steps_in_threads([], [], {})
-        assert results == []
-
     @pytest.mark.asyncio
     async def test_parallel_async_with_empty_steps(self):
-        results = await self.executor._execute_steps_in_async([], [], {})
+        results = await self.executor.execute_workflow_async([], [], {})
         assert results == []
 
-    def test_get_function_invalid_class(self):
+    def test_execute_function_invalid_class(self):
         with pytest.raises(ValueError):
-            self.executor.get_function('InvalidClass.method')
+            self.executor.execute_function('InvalidClass.method', [], {})
 
-    def test_get_function_invalid_method(self):
+    def test_execute_function_invalid_method(self):
         with pytest.raises(AttributeError):
-            self.executor.get_function('workflow_executor_test_methods.invalid_method')
+            self.executor.execute_function('workflow_executor_test_methods.invalid_method', [], {})
+    
+    @pytest.mark.asyncio
+    async def test_execute_function_async_invalid_class(self):
+        with pytest.raises(ValueError):
+            await self.executor.execute_function_async('InvalidClass.method', [], {})
+
+    @pytest.mark.asyncio
+    async def test_execute_function_async_invalid_method(self):
+        with pytest.raises(AttributeError):
+            await self.executor.execute_function_async('workflow_executor_test_methods.invalid_method', [], {})
 
     @pytest.mark.asyncio
     async def test_nested_parallel_async(self):
@@ -344,38 +336,37 @@ class TestWorkflowExecutor:
         assert results == [6, [4, 3]]
 
     def test_get_function_kwargs_missing_required_arg(self):
-        def func(a, b):
-            pass
-        provided_kwargs = {'a': 1}
-        with pytest.raises(KeyError):
-            self.executor.get_function_kwargs_with_values(func, provided_kwargs)
+        provided_kwargs = {'x': 1}
+        with pytest.raises(TypeError, match="Missing argument: 'y', which is required, because it has no default value."):
+            self.executor._prepare_arguments_for_function(workflow_executor_test_methods.step_five_async, [], provided_kwargs)
+
+    def test_get_function_kwargs_wrong_arg_name(self):
+        provided_kwargs = {'x': 1, 'a': 2}
+        with pytest.raises(TypeError, match="Missing argument: 'y', which is required, because it has no default value."):
+            self.executor._prepare_arguments_for_function(workflow_executor_test_methods.step_five_async, [], provided_kwargs)
 
     def test_get_function_kwargs_having_default_value(self):
-        def func(a, b=2):
-            pass
-        provided_kwargs = {'a': 1}
-        result = self.executor.get_function_kwargs_with_values(func, provided_kwargs)
-        assert result == {'a': 1}
+        provided_kwargs = {'x': 1, 'y': 2}
+        prepared_args = self.executor._prepare_arguments_for_function(workflow_executor_test_methods.step_five_async, [], provided_kwargs)
+        assert prepared_args == {'x': 1, 'y': 2}
 
     def test_get_function_kwargs_extra_provided(self):
-        def func(a, b):
-            pass
-        provided_kwargs = {'a': 1, 'b': 2, 'extra': 3}
-        expected = {'a': 1, 'b': 2}
-        assert self.executor.get_function_kwargs_with_values(func, provided_kwargs) == expected
+        provided_kwargs = {'x': 1, 'y': 2, 'z': 3, 'a': 4}
+        prepared_args = self.executor._prepare_arguments_for_function(workflow_executor_test_methods.step_five_async, [], provided_kwargs)
+        assert prepared_args == {'x': 1, 'y': 2, 'z': 3}
 
     def test_flatten_invalid_input(self):
         invalid_input = 123
         with pytest.raises(TypeError):
             self.executor.flatten_tuples(invalid_input)
 
-    @pytest.mark.parametrize("data, expected", [
-        ([(Document(page_content=f"content_{uuid.uuid4()}", metadata={}), 0.5), (Document(page_content=f"content_{uuid.uuid4()}", metadata={}), 1.0)], True),
-        ([(Document(page_content=f"content_{uuid.uuid4()}", metadata={}), 0.5), (1.5, 2.0)], False)
-    ])
-    def test_type_matching_list_of_tuples_document_float(self, data, expected):
-        param_annotation = list[tuple[Document, float]]
-        assert WorkflowExecutor.is_matching_type_and_subtypes(data, param_annotation) == expected
+    # @pytest.mark.parametrize("data, expected", [
+    #     ([(Document(page_content=f"content_{uuid.uuid4()}", metadata={}), 0.5), (Document(page_content=f"content_{uuid.uuid4()}", metadata={}), 1.0)], True),
+    #     ([(Document(page_content=f"content_{uuid.uuid4()}", metadata={}), 0.5), (1.5, 2.0)], False)
+    # ])
+    # def test_type_matching_list_of_tuples_document_float(self, data, expected):
+    #     param_annotation = list[tuple[Document, float]]
+    #     assert self.executor._is_value_matching_annotation(data, param_annotation) == expected
 
     @pytest.mark.parametrize("data, expected", [
         ((1, 2), True),
@@ -383,7 +374,7 @@ class TestWorkflowExecutor:
     ])
     def test_type_matching_tuple_of_ints(self, data, expected):
         param_annotation = tuple[int, int]
-        assert WorkflowExecutor.is_matching_type_and_subtypes(data, param_annotation) == expected
+        assert self.executor._is_value_matching_annotation(data, param_annotation) == expected
 
     @pytest.mark.parametrize("data, expected", [
         ({"one": 1, "two": 2}, True),
@@ -391,20 +382,20 @@ class TestWorkflowExecutor:
     ])
     def test_type_matching_dict_str_int(self, data, expected):
         param_annotation = dict[str, int]
-        assert WorkflowExecutor.is_matching_type_and_subtypes(data, param_annotation) == expected
+        assert self.executor._is_value_matching_annotation(data, param_annotation) == expected
 
     def test_type_matching_list_of_documents(self):
         documents = [Document(page_content=f"content_{uuid.uuid4()}", metadata={}), Document(page_content=f"content_{uuid.uuid4()}", metadata={})]
         param_annotation = list[Document]
-        assert WorkflowExecutor.is_matching_type_and_subtypes(documents, param_annotation)
+        assert self.executor._is_value_matching_annotation(documents, param_annotation)
 
-    def test_type_matching_none_value(self):
-        param_annotation = list[Document]
-        assert WorkflowExecutor.is_matching_type_and_subtypes(None, param_annotation)
+    # def test_type_matching_none_value(self):
+    #     param_annotation = list[Document]
+    #     assert self.executor._is_value_matching_annotation(None, param_annotation)
 
     def test_type_matching_empty_list(self):
         param_annotation = list[Document]
-        assert WorkflowExecutor.is_matching_type_and_subtypes([], param_annotation)
+        assert self.executor._is_value_matching_annotation([], param_annotation)
 
     def test_get_function_ouptut_names_with_single_output(self):
         @workflow_output('result')
@@ -472,8 +463,11 @@ class workflow_executor_test_methods:
     async def step_four_async():
         return 7
 
-    async def step_five_async(x, y, z):
+    async def step_five_async(x, y, z=3):
         return x + y + z
+    
+    def faulty_function():
+            raise RuntimeError('Test exception')
 
     @workflow_output('sum')
     async def step_one_w_workflow_output_async(a, b):

@@ -31,18 +31,18 @@ class Test_RAGInferencePipeline:
         }
 
         # Instantiate the RAGInferencePipeline with the mock service
-        self.rag_pipeline = RagInferencePipeline(rag=self.mock_rag_service)
+        self.rag_pipeline = RagInferencePipeline(rag=self.mock_rag_service, override_workflow_available_classes=self.override_workflow_available_classes)
 
-    def test_run_with_default_config(self):
+    @pytest.mark.asyncio
+    async def test_run_semantic_only_pipeline_dynamic_with_default_config_async(self):
         query = "What is blabla?"
-        results = self.rag_pipeline.run_pipeline_dynamic(query, override_workflow_available_classes=self.override_workflow_available_classes)
-
+        results = await self.rag_pipeline.run_pipeline_dynamic_no_streaming_async(query, include_bm25_retrieval= False)
         assert results == f"Mocked {self.augmented_answer_generation_method_name} called"
 
-    def test_run_with_bm25_retrieval_disabled(self):
-        query = "Tell me about blabla."
-        results = self.rag_pipeline.run_pipeline_dynamic(query, include_bm25_retrieval=False, override_workflow_available_classes=self.override_workflow_available_classes)
-
+    @pytest.mark.asyncio
+    async def test_run_semantic_and_bm25_retrieval_pipeline_dynamic_async(self):
+        query = "Tell me about blabla?"
+        results = await self.rag_pipeline.run_pipeline_dynamic_no_streaming_async(query, include_bm25_retrieval=True)
         assert results == f"Mocked {self.augmented_answer_generation_method_name} called"
     
     # def test_run_with_custom_post_processing_function(self):
