@@ -18,5 +18,5 @@ echo The version of lib that will be built is: %BUILD_VERSION%
 
 REM Run the build command (setup.py reads BUILD_VERSION from the environment)
 python -m build .
-echo package: common_tools-%BUILD_VERSION% is now available from the dist folder
+echo package: common_tools-%BUILD_VERSION% is now available into the dist folder
 endlocal

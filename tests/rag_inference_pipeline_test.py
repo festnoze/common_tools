@@ -1,11 +1,11 @@
 import pytest
 from unittest.mock import MagicMock, patch
-from common_tools.rag.rag_inference_pipeline.rag_augmented_generation_tasks import RAGAugmentedGeneration
-from common_tools.rag.rag_inference_pipeline.rag_guardrails_tasks import RAGGuardrails
-from common_tools.rag.rag_inference_pipeline.rag_retrieval import RagRetrieval
-from common_tools.rag.rag_inference_pipeline.rag_inference_pipeline import RagInferencePipeline
-from common_tools.rag.rag_inference_pipeline.rag_post_treatment_tasks import RAGPostTreatment
-from common_tools.rag.rag_inference_pipeline.rag_pre_treatment_tasks import RAGPreTreatment
+from common_tools.RAG.rag_inference_pipeline.rag_augmented_generation_tasks import RAGAugmentedGeneration
+from common_tools.RAG.rag_inference_pipeline.rag_guardrails_tasks import RAGGuardrails
+from common_tools.RAG.rag_inference_pipeline.rag_retrieval import RagRetrieval
+from common_tools.RAG.rag_inference_pipeline.rag_inference_pipeline import RagInferencePipeline
+from common_tools.RAG.rag_inference_pipeline.rag_post_treatment_tasks import RAGPostTreatment
+from common_tools.RAG.rag_inference_pipeline.rag_pre_treatment_tasks import RAGPreTreatment
 from common_tools.helpers.test_helper import TestHelper
 
 class Test_RAGInferencePipeline:

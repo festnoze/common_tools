@@ -25,12 +25,12 @@ from common_tools.models.conversation import Conversation
 from common_tools.models.doc_w_summary_chunks_questions import DocWithSummaryChunksAndQuestions
 from common_tools.models.question_analysis_base import QuestionAnalysisBase
 from common_tools.models.vector_db_type import VectorDbType
-from common_tools.rag.rag_service import RagService
-from common_tools.rag.rag_ingestion_pipeline.sparse_vector_embedding import SparseVectorEmbedding
+from common_tools.RAG.rag_service import RagService
+from common_tools.RAG.rag_ingestion_pipeline.sparse_vector_embedding import SparseVectorEmbedding
 
 #from langchain_community.retrievers import PineconeHybridSearchRetriever
 # ... is replaced by our own because the actual langchain code doesn't implement async _aget_relevant_documents method
-from common_tools.rag.rag_inference_pipeline.custom_pinecone_hybrid_retriever import PineconeHybridSearchRetriever
+from common_tools.RAG.rag_inference_pipeline.custom_pinecone_hybrid_retriever import PineconeHybridSearchRetriever
 
 class RagRetrieval:
     @staticmethod    

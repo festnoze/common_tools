@@ -6,7 +6,7 @@ from common_tools.helpers.file_helper import file
 
 class Ressource:    
     prompts_package_name = 'common_tools.prompts'
-    rag_configs_package_name = 'common_tools.rag.configs'
+    rag_configs_package_name = 'common_tools.RAG.configs'
 
     @staticmethod
     def load_with_replaced_variables(file_name: str, variables_values: dict) -> str:

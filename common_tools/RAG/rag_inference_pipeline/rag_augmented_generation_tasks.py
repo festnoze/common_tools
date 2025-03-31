@@ -8,7 +8,7 @@ from common_tools.helpers.llm_helper import Llm
 from common_tools.helpers.ressource_helper import Ressource
 from common_tools.models.conversation import Conversation
 from common_tools.models.question_analysis_base import QuestionAnalysisBase
-from common_tools.rag.rag_service import RagService
+from common_tools.RAG.rag_service import RagService
 from common_tools.helpers.execute_helper import Execute
 from common_tools.helpers.method_decorator_helper import MethodDecorator
 

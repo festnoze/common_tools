@@ -1,8 +1,8 @@
 from unittest.mock import patch, MagicMock
 from langchain_chroma import Chroma
 from langchain_core.documents import Document
-from common_tools.rag.rag_inference_pipeline.rag_inference_pipeline import RagInferencePipeline
-from common_tools.rag.rag_service import RagService
+from common_tools.RAG.rag_inference_pipeline.rag_inference_pipeline import RagInferencePipeline
+from common_tools.RAG.rag_service import RagService
 from common_tools.models.langchain_adapter_type import LangChainAdapterType
 from common_tools.models.llm_info import LlmInfo
 from common_tools.models.embedding_type import EmbeddingType

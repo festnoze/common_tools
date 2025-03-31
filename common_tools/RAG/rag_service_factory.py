@@ -1,5 +1,5 @@
 from common_tools.helpers.env_helper import EnvHelper
-from common_tools.rag.rag_service import RagService
+from common_tools.RAG.rag_service import RagService
 
 class RagServiceFactory:
     @staticmethod

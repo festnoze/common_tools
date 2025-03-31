@@ -25,11 +25,11 @@ import numpy as np
 from common_tools.helpers.txt_helper import txt
 from common_tools.models.file_already_exists_policy import FileAlreadyExistsPolicy
 from common_tools.helpers.file_helper import file
-from common_tools.rag.rag_ingestion_pipeline.sparse_vector_embedding import SparseVectorEmbedding
-from common_tools.rag.rag_service import RagService
+from common_tools.RAG.rag_ingestion_pipeline.sparse_vector_embedding import SparseVectorEmbedding
+from common_tools.RAG.rag_service import RagService
 from common_tools.models.vector_db_type import VectorDbType
 from common_tools.helpers.batch_helper import BatchHelper
-from common_tools.rag.rag_ingestion_pipeline.rag_chunking import RagChunking
+from common_tools.RAG.rag_ingestion_pipeline.rag_chunking import RagChunking
 from common_tools.helpers.env_helper import EnvHelper
 
 class RagIngestionPipeline:
