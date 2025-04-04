@@ -101,7 +101,7 @@ class WorkflowExecutor:
         return isinstance(step, str) and step in self.config and isinstance(self.config[step], (list, dict))
 
     @MethodDecorator.print_func_execution_infos(display_param_value="class_and_function_name")
-    def execute_function(self, class_and_function_name, previous_results, kwargs_values):
+    def execute_function(self, class_and_function_name: str, previous_results: list, kwargs_values: dict):
         func = Reflexion.get_static_method(class_and_function_name, self.available_classes)
         func_kwargs = self._prepare_arguments_for_function(func, previous_results, kwargs_values)
         
@@ -119,7 +119,7 @@ class WorkflowExecutor:
             self._raise_fail_func_execution(class_and_function_name, previous_results, kwargs_values, e)
 
     @MethodDecorator.print_func_execution_infos(display_param_value="class_and_function_name")
-    async def execute_function_async(self, class_and_function_name, previous_results, kwargs_values):
+    async def execute_function_async(self, class_and_function_name: str, previous_results: list, kwargs_values: dict):
         func = Reflexion.get_static_method(class_and_function_name, self.available_classes)
         func_kwargs = self._prepare_arguments_for_function(func, previous_results, kwargs_values)
         try:

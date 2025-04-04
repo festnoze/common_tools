@@ -94,16 +94,16 @@ class EnvHelper:
         return txt.get_bool_value_out_of_str_value(str_value, var_name) 
     
     @staticmethod
-    def get_is_questions_created_from_data() -> bool:
+    def get_is_questions_created_from_data(fails_if_unfound_value = True) -> bool:
         var_name = 'IS_QUESTIONS_CREATED_FROM_DATA'
         str_value = EnvHelper.get_env_variable_value_by_name(var_name)
-        return txt.get_bool_value_out_of_str_value(str_value, var_name)
+        return txt.get_bool_value_out_of_str_value(str_value, var_name, fails_if_unfound_value)
     
     @staticmethod
-    def get_is_mixed_questions_and_data() -> bool:
+    def get_is_mixed_questions_and_data(fails_if_unfound_value = True) -> bool:
         var_name = 'IS_MIXED_QUESTIONS_AND_DATA'
         str_value = EnvHelper.get_env_variable_value_by_name(var_name)
-        return txt.get_bool_value_out_of_str_value(str_value, var_name)
+        return txt.get_bool_value_out_of_str_value(str_value, var_name, fails_if_unfound_value)
     
     @staticmethod
     def get_llms_infos_from_env_config(skip_commented_lines:bool = True) -> list[LlmInfo]:

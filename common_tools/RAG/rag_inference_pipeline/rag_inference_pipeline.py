@@ -159,7 +159,7 @@ class RagInferencePipeline:
         analysed_query, metadata = RAGPreTreatment.rag_static_pre_treatment(self.rag, query)
 
         # Data Retrieval
-        retrieved_chunks = RagRetrieval.rag_hybrid_retrieval_langchain_async(self.rag, query, metadata, include_bm25_retrieval, False, True, give_score)
+        retrieved_chunks = RagRetrieval.hybrid_retrieval_langchain_async(self.rag, query, metadata, include_bm25_retrieval, False, True, give_score)
 
         # Augmented Answer Generation
         async for chunk in RAGAugmentedGeneration.rag_augmented_answer_generation_streaming_async(self.rag, query, retrieved_chunks, analysed_query, format_retrieved_docs_function):

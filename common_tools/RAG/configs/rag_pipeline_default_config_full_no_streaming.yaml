@@ -24,8 +24,8 @@ data_retrieval:
 # - parallel_async:
 #     - RagRetrieval.semantic_vector_retrieval_async
 #     - RagRetrieval.bm25_retrieval_async
-# - RagRetrieval.hybrid_chunks_selection_async
-  - RagRetrieval.rag_hybrid_retrieval_langchain_async
+# - RagRetrieval.hybrid_chunks_selection
+  - RagRetrieval.hybrid_retrieval_langchain_async
 
 augmented_generation:
   - RAGAugmentedGeneration.rag_augmented_answer_generation_no_streaming_async

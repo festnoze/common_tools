@@ -46,12 +46,14 @@ class LangChainFactory():
             llm_model_name= llm_info.model,
             timeout_seconds= llm_info.timeout,
             temperature= llm_info.temperature,
-            inference_provider_api_key= llm_info.api_key)
+            inference_provider_api_key= llm_info.api_key,
+            extra_body_dict= llm_info.extra_params,
+        )
         txt.stop_spinner_replace_text('LLM model loaded successfully.')
         return llm
     
     @staticmethod
-    def create_llm(adapter_type: LangChainAdapterType, llm_model_name: str, timeout_seconds: int = 50, temperature: float = 0.1, inference_provider_api_key: str = None) -> Runnable:
+    def create_llm(adapter_type: LangChainAdapterType, llm_model_name: str, timeout_seconds: int = 50, temperature: float = 0.1, inference_provider_api_key: str = None, extra_body_dict: dict[str, any] = {}) -> Runnable:
         llm: Runnable = None
         if adapter_type == LangChainAdapterType.OpenAI:
             if not inference_provider_api_key: inference_provider_api_key = EnvHelper.get_openai_api_key()
@@ -67,7 +69,7 @@ class LangChainFactory():
             else:
                 raise ValueError(f'"{LangChainFactory.__name__}" cannot handle inference provider: {adapter_type.default_inference_provider_name}')
             
-            llm = LangChainFactory.create_inference_provider_generic_openai_llm(llm_model_name, inference_provider_base_url, inference_provider_api_key, timeout_seconds, temperature)
+            llm = LangChainFactory.create_inference_provider_generic_openai_llm(llm_model_name, inference_provider_base_url, inference_provider_api_key, timeout_seconds, temperature, extra_body_dict)
 
         elif adapter_type == LangChainAdapterType.Ollama:
             llm = LangChainFactory.create_ollama_llm(llm_model_name, timeout_seconds, temperature)
@@ -92,7 +94,7 @@ class LangChainFactory():
     def create_openai_llm(llm_model_name: str, api_key: str, timeout_seconds: int = 50, temperature:float = 0.1) -> BaseChatModel:
         from langchain_openai import ChatOpenAI
         return ChatOpenAI(    
-            name= f'chat_openai_{str(uuid.uuid4())}',
+            name= f'openai_chat_{str(uuid.uuid4())}',
             model_name= llm_model_name,
             request_timeout= timeout_seconds,
             temperature= temperature,
@@ -100,28 +102,30 @@ class LangChainFactory():
         )
     
     @staticmethod
-    def create_inference_provider_generic_openai_llm(llm_model_name: str, inference_provider_base_url:str, inference_provider_api_key: str, timeout_seconds: int = 50, temperature:float = 0.1) -> BaseChatModel:
+    def create_inference_provider_generic_openai_llm(llm_model_name: str, inference_provider_base_url:str, inference_provider_api_key: str, timeout_seconds: int = 50, temperature:float = 0.1, extra_body_dict: dict[str, any] = {}) -> BaseChatModel:
         from langchain_openai import ChatOpenAI
+        # base_model_kwargs: dict[str, any] = {
+        #     "headers": {
+        #         "HTTP-Referer": "OUR_SITE_URL",
+        #         "X-Title": "OUR_SITE_NAME"
+        #     }
+        # }
         return ChatOpenAI(
-            name= f'chat_generic_openai_{str(uuid.uuid4())}',
+            name=f"generic_openai_chat_{str(uuid.uuid4())}",
             openai_api_key=inference_provider_api_key,
             openai_api_base=inference_provider_base_url,
             model_name=llm_model_name,
-            request_timeout= timeout_seconds,
-            temperature= temperature,
-            # model_kwargs={
-            #     "headers": {
-            #     "HTTP-Referer": "OUR_SITE_URL",
-            #     "X-Title": "OUR_SITE_NAME",
-            #     }
-            # },
-        )
+            request_timeout=timeout_seconds,
+            temperature=temperature,
+            extra_body= extra_body_dict,
+            #model_kwargs=base_model_kwargs,
+        )    
     
     @staticmethod
     def create_ollama_llm(llm_model_name: str, timeout_seconds: int = 50, temperature:float = 0.1) -> BaseChatModel:
         from langchain_ollama import ChatOllama
         return ChatOllama(    
-            name= f'ollama_{str(uuid.uuid4())}',
+            name= f'ollama_chat_{str(uuid.uuid4())}',
             model= llm_model_name,
             timeout= timeout_seconds,
             temperature= temperature
@@ -131,7 +135,7 @@ class LangChainFactory():
     def create_anthropic_llm(llm_model_name: str, api_key: str, timeout_seconds: int = 50, temperature:float = 0.1) -> BaseChatModel:
         from langchain_anthropic import ChatAnthropic
         return ChatAnthropic(    
-            name= f'anthropic_{str(uuid.uuid4())}',
+            name= f'anthropic_chat_{str(uuid.uuid4())}',
             model= llm_model_name,
             default_request_timeout= timeout_seconds,
             temperature= temperature,
@@ -142,7 +146,7 @@ class LangChainFactory():
     def create_groq_llm(llm_model_name: str, api_key: str, timeout_seconds: int = 50, temperature:float = 0.1) -> BaseChatModel:
         from langchain_groq import ChatGroq
         return ChatGroq(    
-            name= f'chat_groq_{str(uuid.uuid4())}',
+            name= f'groq_chat_{str(uuid.uuid4())}',
             model_name= llm_model_name,
             request_timeout= timeout_seconds,
             temperature= temperature,

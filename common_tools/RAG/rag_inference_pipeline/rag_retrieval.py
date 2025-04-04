@@ -34,20 +34,7 @@ from common_tools.RAG.rag_inference_pipeline.custom_pinecone_hybrid_retriever im
 
 class RagRetrieval:
     @staticmethod    
-    def rag_hybrid_retrieval_custom(rag: RagService, analysed_query: QuestionAnalysisBase, metadata: dict, include_bm25_retrieval: bool = False, give_score: bool = True, max_retrived_count: int = 20):
-        if not include_bm25_retrieval:
-            rag_retrieved_chunks = RagRetrieval.semantic_vector_retrieval(rag, QuestionAnalysisBase.get_modified_question(analysed_query), metadata, give_score, max_retrived_count)
-            return rag_retrieved_chunks
-        
-        rag_retrieved_chunks, bm25_retrieved_chunks = Execute.run_sync_functions_in_parallel_threads(
-            (RagRetrieval.semantic_vector_retrieval, (rag, QuestionAnalysisBase.get_modified_question(analysed_query), metadata, give_score, max_retrived_count)),
-            (RagRetrieval.bm25_retrieval, (rag, QuestionAnalysisBase.get_modified_question(analysed_query), metadata, give_score, max_retrived_count)),
-        )
-        retained_chunks = RagRetrieval.hybrid_chunks_selection(rag_retrieved_chunks, bm25_retrieved_chunks, give_score, max_retrived_count)
-        return retained_chunks
-    
-    @staticmethod    
-    async def rag_hybrid_retrieval_langchain_async(rag: RagService, analysed_query: QuestionAnalysisBase, metadata_filters: Optional[Union[Operation, Comparison]], include_bm25_retrieval: bool = True, include_contextual_compression: bool = False, include_semantic_retrieval: bool = True, give_score: bool = True, max_retrived_count: int = 20, bm25_ratio: float = 0.2):
+    async def hybrid_retrieval_langchain_async(rag: RagService, analysed_query: QuestionAnalysisBase, metadata_filters: Optional[Union[Operation, Comparison]], include_bm25_retrieval: bool = True, include_contextual_compression: bool = False, include_semantic_retrieval: bool = True, give_score: bool = True, max_retrived_count: int = 20, bm25_ratio: float = 0.2):
         if metadata_filters and not any(metadata_filters): metadata_filters = None
         do_hybrid_retrieval = include_bm25_retrieval and include_semantic_retrieval
         is_pinecone_hybrid_db = do_hybrid_retrieval and rag.vector_db_type == VectorDbType.Pinecone and EnvHelper.get_BM25_storage_as_db_sparse_vectors() and EnvHelper.get_is_common_db_for_sparse_and_dense_vectors()
@@ -56,7 +43,7 @@ class RagRetrieval:
         if is_pinecone_hybrid_db:
             metadata_filters_in_pinecone_format = RagFilteringMetadataHelper.translate_langchain_metadata_filters_into_specified_db_type_format(metadata_filters, rag.vector_db_type)
             semantic_k_ratio = round(1 - bm25_ratio, 2)
-            retriever = await RagRetrieval.rag_pinecone_hybrid_retrieval_langchain_async(rag, max_retrived_count, semantic_k_ratio)
+            retriever = await RagRetrieval.pinecone_hybrid_retrieval_langchain_async(rag, max_retrived_count, semantic_k_ratio)
         else:
             retriever = RagRetrieval.get_hybrid_retriever_langchain(rag, metadata_filters, include_bm25_retrieval, include_contextual_compression, include_semantic_retrieval, give_score, max_retrived_count, bm25_ratio)
         
@@ -73,8 +60,13 @@ class RagRetrieval:
         # In case no docs are retrieved, re-launch the hybrid retrieval, without metadata filters
         if metadata_filters and (not retrieved_chunks or not any(retrieved_chunks)):
             print('/!\\ >> Hybid retrieval returns no documents. Retrying without any metadata filters.')
-            return await RagRetrieval.rag_hybrid_retrieval_langchain_async(rag, analysed_query, None, include_bm25_retrieval, include_contextual_compression, include_semantic_retrieval, give_score, max_retrived_count, bm25_ratio)
+            return await RagRetrieval.hybrid_retrieval_langchain_async(rag, analysed_query, None, include_bm25_retrieval, include_contextual_compression, include_semantic_retrieval, give_score, max_retrived_count, bm25_ratio)
 
+        post_treat_retrieved_chunks = RagRetrieval.retrieval_post_treatment(rag, retrieved_chunks)
+        return post_treat_retrieved_chunks
+
+    @staticmethod
+    def retrieval_post_treatment(rag: RagService, retrieved_chunks: list[Document]): 
         # Remove duplicate chunks TODO: shouldn't happends, analyse why (duplicates also happens on pinecone w/o hybrid retriever returns twice dense and sparse vectors)
         unique_chunks = []
         seen_ids = set()
@@ -94,13 +86,21 @@ class RagRetrieval:
                 if "rel_ids" in retrieved_chunk.metadata:
                     retrieved_chunk.metadata.pop("rel_ids", None)
 
-        # Remove the part of the text in retrieved chunks that contains questions (if embeded vectors packed both questions and content together)
-        for retrieved_chunk in retrieved_chunks:
-            if DocWithSummaryChunksAndQuestions.answers_title in retrieved_chunk.metadata['text']:
-                retrieved_chunk.metadata['text'] = retrieved_chunk.metadata['text'].split(DocWithSummaryChunksAndQuestions.answers_title, 1)[1]
+        # Remove the questions from the text of retrieved chunks (if both questions and content are packed together in embeddings)
+        if RagRetrieval._is_questions_and_content_packed_together():
+            for retrieved_chunk in retrieved_chunks:
+                if DocWithSummaryChunksAndQuestions.questions_title in retrieved_chunk.page_content and DocWithSummaryChunksAndQuestions.answers_title in retrieved_chunk.page_content:
+                    retrieved_chunk.page_content = retrieved_chunk.page_content.split(DocWithSummaryChunksAndQuestions.answers_title, 1)[1]
 
         return retrieved_chunks    
-        
+    
+    is_questions_and_content_packed_together: bool = None
+    @staticmethod
+    def _is_questions_and_content_packed_together() -> bool:
+        if RagRetrieval.is_questions_and_content_packed_together is None:
+            RagRetrieval.is_questions_and_content_packed_together = EnvHelper.get_is_questions_created_from_data(False) and EnvHelper.get_is_mixed_questions_and_data(False)
+        return RagRetrieval.is_questions_and_content_packed_together
+    
     @staticmethod    
     def get_hybrid_retriever_langchain(rag: RagService, metadata_filters: Optional[Union[Operation, Comparison]], include_bm25_retrieval: bool = True, include_contextual_compression: bool = False, include_semantic_retrieval: bool = True, give_score: bool = True, max_retrived_count: int = 20, bm25_ratio: float = 0.2):
         do_hybrid_retrieval = include_bm25_retrieval and include_semantic_retrieval
@@ -136,7 +136,7 @@ class RagRetrieval:
                 retrievers.append(bm25_retriever)
 
         if not any(retrievers): 
-            raise ValueError(f"No retriever has been defined in '{RagRetrieval.rag_hybrid_retrieval_langchain_async.__name__}'.")
+            raise ValueError(f"No retriever has been defined in '{RagRetrieval.hybrid_retrieval_langchain_async.__name__}'.")
 
         weights = []
         if include_semantic_retrieval: weights.append(semantic_k_ratio)
@@ -155,7 +155,7 @@ class RagRetrieval:
         return final_retriever
     
     @staticmethod    
-    async def rag_pinecone_hybrid_retrieval_langchain_async(rag: RagService, max_retrived_count: int = 20, semantic_k_ratio: float = 0.2):
+    async def pinecone_hybrid_retrieval_langchain_async(rag: RagService, max_retrived_count: int = 20, semantic_k_ratio: float = 0.2):
         retriever = PineconeHybridSearchRetriever(
             embeddings= rag.embedding,
             sparse_encoder= SparseVectorEmbedding(rag.vector_db_base_path, load_vectorizer_from_file= True), #TODO: use our custom sparse encoder, think to extend
@@ -166,6 +166,19 @@ class RagRetrieval:
             text_content_key= "text",  # Key in the metadata that contains the text
         )
         return retriever
+        
+    @staticmethod    
+    def rag_hybrid_retrieval_custom(rag: RagService, analysed_query: QuestionAnalysisBase, metadata: dict, include_bm25_retrieval: bool = False, give_score: bool = True, max_retrived_count: int = 20):
+        if not include_bm25_retrieval:
+            rag_retrieved_chunks = RagRetrieval.semantic_vector_retrieval(rag, QuestionAnalysisBase.get_modified_question(analysed_query), metadata, give_score, max_retrived_count)
+            return rag_retrieved_chunks
+        
+        rag_retrieved_chunks, bm25_retrieved_chunks = Execute.run_sync_functions_in_parallel_threads(
+            (RagRetrieval.semantic_vector_retrieval, (rag, QuestionAnalysisBase.get_modified_question(analysed_query), metadata, give_score, max_retrived_count)),
+            (RagRetrieval.bm25_retrieval, (rag, QuestionAnalysisBase.get_modified_question(analysed_query), metadata, give_score, max_retrived_count)),
+        )
+        retained_chunks = RagRetrieval.hybrid_chunks_selection(rag_retrieved_chunks, bm25_retrieved_chunks, give_score, max_retrived_count)
+        return retained_chunks
 
     @staticmethod    
     def semantic_vector_retrieval(rag: RagService, query:Union[str, Conversation], metadata_filters:dict, give_score: bool = False, max_retrieved_count: int = 10, min_score: float = None, min_retrived_count: int = None):
@@ -211,9 +224,11 @@ class RagRetrieval:
             return [(doc, score) for doc in bm25_retrieved_chunks]
         else:
             return bm25_retrieved_chunks
-
+        
     @staticmethod   
     def hybrid_chunks_selection(rag_retrieved_chunks: list[tuple[Document, float]], bm25_retrieved_chunks: list[tuple[Document, float]] = None, give_score: bool = False, max_retrived_count: int = None):
+        """ Chunks ranking and selection from both semantic and bm25 retrievals.
+        """
         if not bm25_retrieved_chunks or not any(bm25_retrieved_chunks):
             return rag_retrieved_chunks
         
@@ -228,5 +243,5 @@ class RagRetrieval:
     
     @staticmethod   
     def chunks_reranking_and_selection(retrieved_chunks: list[tuple[Document, float]]):
-        pass
+        return retrieved_chunks
     

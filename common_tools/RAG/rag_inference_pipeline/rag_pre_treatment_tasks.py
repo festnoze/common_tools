@@ -106,7 +106,7 @@ class RAGPreTreatment:
             raise EndMessageEndsPipelineException()
         return question_rewritting
 
-    #TODO: /!\ WARNING /!\ the query rewritting is domain specific and its prompt too (for studi.com). Thus, it shouldn't be in common_tools
+    #TODO: /!\ WARNING /!\ TO MOVE. the query rewritting is domain specific and its prompt too (for studi.com chatbot). Therefore, it shouldn't be in common_tools
     @staticmethod
     @workflow_output('analysed_query')
     async def query_rewritting_for_studi_com_chatbot_async(rag:RagService, analysed_query:QuestionRewritting) -> str:        
@@ -126,8 +126,7 @@ class RAGPreTreatment:
         if isinstance(analysed_query, QuestionTranslation):  
             analysed_query.modified_question = analysed_query.modified_question
         elif isinstance(analysed_query, QuestionRewritting):  
-            analysed_query.modified_question = analysed_query.question_with_context
-        
+            analysed_query.modified_question = analysed_query.question_with_context        
         return analysed_query
 
     @staticmethod

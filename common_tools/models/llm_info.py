@@ -1,7 +1,7 @@
 from common_tools.models.langchain_adapter_type import LangChainAdapterType
 
 class LlmInfo:
-    def __init__(self, type:LangChainAdapterType, model:str, timeout:int, temperature:float, is_chat_model:bool = True, is_reasoning_model:bool = False, api_key:str = None):
+    def __init__(self, type:LangChainAdapterType, model:str, timeout:int, temperature:float, is_chat_model:bool = True, is_reasoning_model:bool = False, api_key:str = None, extra_params: dict[str, any] = {}):
         self.type = type
         self.model = model
         self.timeout = timeout
@@ -10,6 +10,7 @@ class LlmInfo:
         self.api_key = api_key
         self.is_reasoning_model = is_reasoning_model
         self.inference_provider_name = type.default_inference_provider_name if type == LangChainAdapterType.InferenceProvider else None
+        self.extra_params = extra_params
 
     @staticmethod
     def factory_from_dict(llm_dict:dict, llms_temp:float = None, llm_api_key:str = None ) -> 'LlmInfo':
@@ -18,6 +19,7 @@ class LlmInfo:
         timeout = llm_dict['timeout'] if 'timeout' in llm_dict else 60
         is_chat_model = llm_dict['is_chat_model'] if 'is_chat_model' in llm_dict else True
         is_reasoning_model = llm_dict['is_reasoning_model'] if 'is_reasoning_model' in llm_dict else False
+        extra_params = llm_dict.get('extra_params', {})
         inference_provider_name = None
         
         if ' ' in llm_dict['type']:
@@ -36,7 +38,8 @@ class LlmInfo:
                         temperature=llms_temp,
                         is_chat_model=is_chat_model,
                         is_reasoning_model=is_reasoning_model,
-                        api_key=llm_api_key
+                        api_key=llm_api_key,
+                        extra_params=extra_params
                     )
         return llm_info
     
