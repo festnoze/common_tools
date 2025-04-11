@@ -203,6 +203,14 @@ class RagIngestionPipeline:
         if load_embeddings_from_file_if_exists and file.exists(joined_embeddings_filepath):
             all_entries = file.get_as_json(joined_embeddings_filepath)
             print(f"!!! Loaded {len(all_entries)} existing entries (sparse + dense vectors) from file: {joined_embeddings_filepath} !!!")
+            for entry in all_entries:
+                if len(entry["sparse_values"]["indices"]) == 0:
+                    entry["sparse_values"]["indices"] = all_entries[0]["sparse_values"]["indices"]
+                    print(f"!!! /!\\ Sparse vector 'indices' are empty. Using the first entry's indices: {entry['sparse_values']['indices']} !!!")
+                if len(entry["sparse_values"]["values"]) == 0:
+                    entry["sparse_values"]["values"] = all_entries[0]["sparse_values"]["values"]
+                    print(f"!!! /!\\ Sparse vector 'values' are empty. Using the first entry's values: {entry['sparse_values']['values']} !!!")
+                    
             return all_entries
         
         # Embed all documents as sparse vectors and dense vectors 
