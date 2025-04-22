@@ -11,11 +11,14 @@ from common_tools.helpers.txt_helper import txt
 class SparseVectorEmbedding:
     vectorizer: TfidfVectorizer = None
     file_base_path:str = None
-    sparse_vectorizer_filename:str = "sparse_vectorizer.pkl"
+    sparse_vectorizer_filename:str = None
 
-    def __init__(self, file_base_path, load_vectorizer_from_file=True, k1=1.5, b=0.75):
+    def __init__(self, file_base_path, file_prefix, load_vectorizer_from_file=True, k1=1.5, b=0.75):
         if not SparseVectorEmbedding.file_base_path:
             SparseVectorEmbedding.file_base_path = file_base_path
+        if not SparseVectorEmbedding.sparse_vectorizer_filename:
+            SparseVectorEmbedding.sparse_vectorizer_filename = file_prefix + "_sparse_vectorizer.pkl"
+            
         self.k1 = k1
         self.b = b
         self.avg_doc_length = None  # Stores the average document length after initial embedding

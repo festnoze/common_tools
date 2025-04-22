@@ -203,19 +203,12 @@ class RagIngestionPipeline:
         if load_embeddings_from_file_if_exists and file.exists(joined_embeddings_filepath):
             all_entries = file.get_as_json(joined_embeddings_filepath)
             print(f"!!! Loaded {len(all_entries)} existing entries (sparse + dense vectors) from file: {joined_embeddings_filepath} !!!")
-            for entry in all_entries:
-                if len(entry["sparse_values"]["indices"]) == 0:
-                    entry["sparse_values"]["indices"] = all_entries[0]["sparse_values"]["indices"]
-                    print(f"!!! /!\\ Sparse vector 'indices' are empty. Using the first entry's indices: {entry['sparse_values']['indices']} !!!")
-                if len(entry["sparse_values"]["values"]) == 0:
-                    entry["sparse_values"]["values"] = all_entries[0]["sparse_values"]["values"]
-                    print(f"!!! /!\\ Sparse vector 'values' are empty. Using the first entry's values: {entry['sparse_values']['values']} !!!")
-                    
+            self.fix_empty_sparse_vectors(all_entries)
             return all_entries
         
         # Embed all documents as sparse vectors and dense vectors 
         # (as no file containing previous embeddings exists, or if the user ask to recompute the embeddings)
-        sparse_vectorizer = SparseVectorEmbedding(self.rag_service.vector_db_base_path, load_vectorizer_from_file= False)
+        sparse_vectorizer = SparseVectorEmbedding(self.rag_service.vector_db_base_path, self.rag_service.vector_db_full_name, load_vectorizer_from_file= False)
         all_chunks_contents = [doc.page_content for doc in chunks]
             
         # Step 1: Compute Sparse Vectors (BM25)
@@ -225,7 +218,8 @@ class RagIngestionPipeline:
         txt.stop_spinner_replace_text(f"BM25 sparse vectors embedded sucessfully. Sparse vectorizer saved in: {sparse_vectorizer.file_base_path}.")
 
         # Step 2: Compute or Load Dense Vectors
-        dense_vectors_filepath = os.path.join(self.rag_service.vector_db_base_path, "dense_vectors.npy")
+        dense_vectors_filename = self.rag_service.vector_db_full_name + "_dense_vectors.npy"
+        dense_vectors_filepath = os.path.join(self.rag_service.vector_db_base_path, dense_vectors_filename)
         dense_vectors = []
         if load_embeddings_from_file_if_exists and file.exists(dense_vectors_filepath):
             dense_vectors_array = np.load(dense_vectors_filepath)
@@ -271,11 +265,21 @@ class RagIngestionPipeline:
                     "metadata": doc.metadata  # Add metadata for filtering
                 }
             all_entries.append(entry)
-            
+        self.fix_empty_sparse_vectors(all_entries)
+        
         # Save joined embeddings as file 
         all_entries_json = json.dumps(all_entries, ensure_ascii=False, indent=4)
         file.write_file(all_entries_json, joined_embeddings_filepath, FileAlreadyExistsPolicy.Override)
         return all_entries
+
+    def fix_empty_sparse_vectors(self, all_entries):
+        for entry in all_entries:
+            if len(entry["sparse_values"]["indices"]) == 0:
+                entry["sparse_values"]["indices"] = all_entries[0]["sparse_values"]["indices"]
+                print(f"!!! /!\\ Sparse vector 'indices' are empty. Using the first entry's indices: {entry['sparse_values']['indices']} !!!")
+            if len(entry["sparse_values"]["values"]) == 0:
+                entry["sparse_values"]["values"] = all_entries[0]["sparse_values"]["values"]
+                print(f"!!! /!\\ Sparse vector 'values' are empty. Using the first entry's values: {entry['sparse_values']['values']} !!!")
 
     def _build_bm25_store_as_raw_json_file(self, documents:list):
         documents_dict = []

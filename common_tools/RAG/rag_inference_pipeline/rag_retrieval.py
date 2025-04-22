@@ -158,7 +158,7 @@ class RagRetrieval:
     async def pinecone_hybrid_retrieval_langchain_async(rag: RagService, max_retrived_count: int = 20, semantic_k_ratio: float = 0.2):
         retriever = PineconeHybridSearchRetriever(
             embeddings= rag.embedding,
-            sparse_encoder= SparseVectorEmbedding(rag.vector_db_base_path, load_vectorizer_from_file= True), #TODO: use our custom sparse encoder, think to extend
+            sparse_encoder= SparseVectorEmbedding(rag.vector_db_base_path, rag.vector_db_full_name, load_vectorizer_from_file= True), #TODO: use our custom sparse encoder, think to extend
             index= rag.vectorstore._index,
             top_k= max_retrived_count,  # Number of documents to retrieve
             alpha= semantic_k_ratio,  # Balance between dense and sparse vector retrieval
