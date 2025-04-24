@@ -113,6 +113,8 @@ class file:
     
     @staticmethod
     def exists(filepath:str)-> bool:
+        if not filepath: 
+            return False
         return os.path.exists(filepath)
     
     @staticmethod
