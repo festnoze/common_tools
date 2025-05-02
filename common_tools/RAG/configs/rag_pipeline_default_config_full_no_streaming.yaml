@@ -15,17 +15,19 @@ inference_pipeline:
 pre_treatment:  
   - parallel_async:
     - RAGPreTreatment.query_standalone_from_history_async
-    - RAGPreTreatment.bypassed_query_translation_async
-    - RAGPreTreatment.bypassed_query_rewritting_async
+    - RAGPreTreatment.query_translation_async
+    - RAGPreTreatment.query_rewritting_async
   - RAGPreTreatment.analyse_query_for_metadata_async
   - RAGPreTreatment.metadata_filters_validation_and_correction_async
 
 data_retrieval:
-# - parallel_async:
-#     - RagRetrieval.semantic_vector_retrieval_async
-#     - RagRetrieval.bm25_retrieval_async
-# - RagRetrieval.hybrid_chunks_selection
-  - RagRetrieval.hybrid_retrieval_langchain_async
+- parallel_async:
+    - RagRetrieval.semantic_vector_retrieval_async
+    - RagRetrieval.bm25_retrieval_async
+- RagRetrieval.hybrid_chunks_selection
+# - RagRetrieval.hybrid_retrieval_langchain_async
+- RagRetrieval.contextual_compression_selection_async
+- RagRetrieval.reranker_on_retrieved_docs_async
 
 augmented_generation:
   - RAGAugmentedGeneration.rag_augmented_answer_generation_no_streaming_async

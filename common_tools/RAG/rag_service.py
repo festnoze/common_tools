@@ -21,8 +21,28 @@ from common_tools.models.embedding_model import EmbeddingModel
 from common_tools.models.embedding_model_factory import EmbeddingModelFactory
 from common_tools.models.vector_db_type import VectorDbType
 
+class RagServiceFactory:
+    @staticmethod
+    def build_from_env_config(vector_db_base_path:str = None, documents_json_filename:str = None) -> 'RagService':
+        if not vector_db_base_path: vector_db_base_path = './storage'
+        if not documents_json_filename: documents_json_filename = 'bm25_documents.json'
+
+        embedding_model = EnvHelper.get_embedding_model()
+        llms_infos      = EnvHelper.get_llms_infos_from_env_config()
+        vector_db_type  = EnvHelper.get_vector_db_type()
+        vector_db_base_name  = EnvHelper.get_vector_db_name()
+
+        return RagService(
+                llms_or_info= llms_infos,
+                embedding_model= embedding_model,
+                vector_db_base_path= vector_db_base_path,
+                vector_db_type= vector_db_type,
+                vector_db_base_name= vector_db_base_name,
+                documents_json_filename= documents_json_filename
+        )
+
 class RagService:
-    def __init__(self, llms_or_info: Optional[Union[LlmInfo, Runnable, list]], embedding_model:EmbeddingModel= None, vector_db_base_path:str = None, vector_db_type:VectorDbType = VectorDbType('chroma'), vector_db_name:str = 'main', documents_json_filename:str = None):
+    def __init__(self, llms_or_info: Optional[Union[LlmInfo, Runnable, list]], embedding_model:EmbeddingModel= None, vector_db_base_path:str = None, vector_db_type:VectorDbType = VectorDbType('chroma'), vector_db_base_name:str = 'main', documents_json_filename:str = None):
         # Init default parameters values if not setted
         if not vector_db_base_path: vector_db_base_path = './storage'
         if not documents_json_filename: documents_json_filename = 'bm25_documents.json'
@@ -32,7 +52,7 @@ class RagService:
         self.llm_3=None
         self.instanciate_embedding(embedding_model)
         self.instanciate_llms(llms_or_info, test_llms_inference=False)
-        self.vector_db_name:str = vector_db_name
+        self.vector_db_name:str = vector_db_base_name
         self.vector_db_type:VectorDbType = vector_db_type
         self.vector_db_base_path:str = vector_db_base_path
         self.vector_db_full_name = self.get_vectorstore_full_name(self.vector_db_name)

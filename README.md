@@ -27,5 +27,5 @@ The provided tools range from:
 <u>*Tips:*</u>
 
 - Look into `setup.py` file, the required packages are listed in: `install_requires` section.
-- To install locally this package from another project, execute from the terminal: `pip install -e C:/Dev/squad-ai/CommonTools`
-- To build the package 'common_tools', run the command: "**libs_build.bat**". The built package will be found in the "dist" folder.
+- To install locally this package from another project, execute from the terminal: `pip install -e <CommonToolsPath>` where 'CommonToolsPath' has to be replaced by the actual path of your local "common tools" project root folder.
+- To build the package 'common_tools', simply run the command: "**libs_build.bat**", from within the "common tools" root folder. The built package will be found in the "dist" folder with an auto-incremented version. Copy the '*.whl' file where you want this library to be referenced.
