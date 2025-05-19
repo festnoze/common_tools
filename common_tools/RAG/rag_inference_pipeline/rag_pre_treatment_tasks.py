@@ -75,7 +75,7 @@ class RAGPreTreatment:
 
     @staticmethod
     def _replace_query_and_history_in_prompt(query, prompt):
-        prompt = prompt.replace('{user_query}', Conversation.get_user_query(query))
+        prompt = prompt.replace('{user_query}', Conversation.get_query(query))
         prompt = prompt.replace('{conversation_history}', Conversation.conversation_history_as_str(query, include_current_user_query=False))
         return prompt
     
@@ -83,7 +83,7 @@ class RAGPreTreatment:
     @workflow_output('analysed_query')
     async def query_standalone_from_history_async(rag:RagService, query:Union[str, Conversation]) -> QuestionRewritting:
         query_standalone_prompt = Ressource.get_create_standalone_query_from_history_prompt()
-        user_query = Conversation.get_user_query(query)
+        user_query = Conversation.get_query(query)
         query_standalone_prompt = query_standalone_prompt.replace('{user_query}', user_query)
         query_standalone_prompt = query_standalone_prompt.replace('{conversation_history}', Conversation.conversation_history_as_str(query, include_current_user_query=False))
 
@@ -91,10 +91,11 @@ class RAGPreTreatment:
             query_standalone_prompt, QuestionRewrittingPydantic, QuestionRewritting
         )
 
-        response = await Llm.invoke_parallel_prompts_with_parser_batchs_fallbacks_async(
+        response_list = await Llm.invoke_parallel_prompts_with_parser_batchs_fallbacks_async(
             'Standalone query from history', [rag.llm_2, rag.llm_3], output_parser, 10, *[prompt_for_output_parser]
         )
-        question_rewritting = QuestionRewritting(**response[0])
+        response = response_list[0]
+        question_rewritting = QuestionRewritting(**response)
         print(f'> Standalone query: "{question_rewritting.question_with_context}"')
 
         # interupt pipeline if no RAG is needed
@@ -149,7 +150,7 @@ class RAGPreTreatment:
     @staticmethod    
     @workflow_output('analysed_query')
     async def query_translation_async(rag:RagService, query:Union[str, Conversation]) -> QuestionTranslation:
-        user_query = Conversation.get_user_query(query)
+        user_query = Conversation.get_query(query)
         prefilter_prompt = Ressource.get_language_detection_prompt()
         prefilter_prompt = prefilter_prompt.replace("{question}", user_query)
         prompt_for_output_parser, output_parser = Llm.get_prompt_and_json_output_parser(
@@ -167,7 +168,7 @@ class RAGPreTreatment:
     @staticmethod    
     @workflow_output('analysed_query') #todo: to replace with above
     async def bypassed_query_translation_async(rag:RagService, query:Union[str, Conversation]) -> QuestionTranslation:
-        user_query = Conversation.get_user_query(query)
+        user_query = Conversation.get_query(query)
         question_analysis = QuestionTranslation(query, query, 'request', 'french')
         return question_analysis
 
@@ -199,7 +200,7 @@ class RAGPreTreatment:
     @staticmethod
     def bypassed_analyse_query_for_metadata(rag:RagService, analysed_query:QuestionAnalysisBase) -> tuple[str, dict]:
         query = QuestionAnalysisBase.get_modified_question(analysed_query)
-        return Conversation.get_user_query(query), {}
+        return Conversation.get_query(query), {}
             
     @staticmethod
     async def metadata_filters_validation_and_correction_async(query_and_metadata_filters:tuple) -> tuple[str, Operation]:

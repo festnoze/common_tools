@@ -7,6 +7,12 @@ from common_tools.RAG.rag_service import RagService
 from common_tools.models.langchain_adapter_type import LangChainAdapterType
 from common_tools.models.llm_info import LlmInfo
 from common_tools.models.embedding_model import EmbeddingModel
+from common_tools.models.user import User
+from common_tools.models.conversation import Conversation
+from common_tools.models.message import Message
+from common_tools.models.device_info import DeviceInfo
+from common_tools.models.vector_db_type import VectorDbType
+from common_tools.helpers.env_helper import EnvHelper
 
 class TestRagInferencePipelineIntegration:
 
@@ -17,11 +23,20 @@ class TestRagInferencePipelineIntegration:
         llms_infos.append(LlmInfo(type=LangChainAdapterType.Ollama, model="llama3.2:1b", timeout=80, temperature=0))
         
         docs: list[Document] = [
-            Document(page_content="Choupicity is the capital of Choupiland.", metadata={"source": "Wikipedia"}),
-            Document(page_content="The Eiffel Tower is a famous landmark in Paris.", metadata={"source": "Wikipedia"}),
-            Document(page_content="The Louvre is a famous museum in Paris.", metadata={"source": "Wikipedia"}),
-            Document(page_content="CCIAPF is the simulation of octopus intelligence in trees.", metadata={"source": "Wikipedia"}),
+            Document(page_content="Choupicity is the capital of Choupiland.", metadata={"source": "Wikipedia", "id": "doc1"}),
+            Document(page_content="The Eiffel Tower is a famous landmark in Paris.", metadata={"source": "Wikipedia", "id": "doc2"}),
+            Document(page_content="The Louvre is a famous museum in Paris.", metadata={"source": "Wikipedia", "id": "doc3"}),
+            Document(page_content="CCIAPF is the simulation of octopus intelligence in trees.", metadata={"source": "Wikipedia", "id": "doc4"}),
         ]
+
+        # Patch DB related env. values from EnvHelper
+        self.env_helper_patchers = [
+            patch.object(EnvHelper, 'get_BM25_storage_as_db_sparse_vectors', return_value=False),
+            patch.object(EnvHelper, 'get_is_common_db_for_sparse_and_dense_vectors', return_value=False),
+            patch.object(EnvHelper, 'get_is_summarized_data', return_value=False),
+            patch.object(EnvHelper, 'get_is_questions_created_from_data', return_value=False),
+        ]
+        self.env_helper_mocks = [patcher.start() for patcher in self.env_helper_patchers]
 
         with patch.object(RagService, '__init__', return_value=None):
             self.rag_service = RagService()
@@ -29,16 +44,23 @@ class TestRagInferencePipelineIntegration:
             self.rag_service.instanciate_llms(llms_infos, test_llms_inference=False)
             self.rag_service.langchain_documents = docs
             self.rag_service.vectorstore = Chroma.from_documents(documents= docs, embedding = self.rag_service.embedding)
+            self.rag_service.vector_db_type = VectorDbType.ChromaDB
             #
             self.inference = RagInferencePipeline(self.rag_service)
+    
+    def teardown_method(self):
+        # Stop the patchers when the test is done
+        for patcher in self.env_helper_patchers:
+            patcher.stop()
 
     @pytest.mark.asyncio
     async def test_inference_pipeline_run_dynamic_with_bm25_retrieval(self):
-        # Define the query for the test
         query = "Quelle est la capitale de la Choupiland ?"
+        user = User('John Doe', device_info=DeviceInfo("0.1.2.3", "test_agent", "test", "v1", "win10", "", False))
+        conv = Conversation(user, [Message(role="user", content=query)])
         
         response = await self.inference.run_pipeline_dynamic_no_streaming_async(
-            query, 
+            conv, 
             include_bm25_retrieval=True, 
             give_score=True, 
             format_retrieved_docs_function=None
@@ -51,12 +73,12 @@ class TestRagInferencePipelineIntegration:
 
     @pytest.mark.asyncio
     async def test_inference_pipeline_run_dynamic_without_bm25_retrieval(self):
-        # Define the query for the test
         query = "Explain the concept of CCIAPF."
+        user = User('John Doe', device_info=DeviceInfo("1.2.3.4", "test_agent", "test", "v1", "win10", "", False))
+        conv = Conversation(user, [Message(role="user", content=query)])        
 
-        # Run the inference pipeline without BM25 retrieval
         response = await self.inference.run_pipeline_dynamic_no_streaming_async(
-            query,
+            conv,
             include_bm25_retrieval=False, 
             give_score=True, 
             format_retrieved_docs_function=TestRagInferencePipelineIntegration.format_retrieved_docs_function
@@ -71,11 +93,12 @@ class TestRagInferencePipelineIntegration:
 
     @pytest.mark.asyncio
     async def test_inference_pipeline_run_static_with_bm25_retrieval(self):
-        # Define the query for the test
         query = "Quelle est la capitale de la Choupiland ?"
-        
+        user = User('John Doe', device_info=DeviceInfo("1.2.3.4", "test_agent", "test", "v1", "win10", "", False))
+        conv = Conversation(user, [Message(role="user", content=query)])  
+
         response = await self.inference.run_pipeline_static_no_streaming_async(
-            query, 
+            conv, 
             include_bm25_retrieval=True, 
             give_score=True, 
             format_retrieved_docs_function=None
@@ -125,4 +148,3 @@ class TestRagInferencePipelineIntegration:
     #     assert len(sources) > 0, "There should be at least one source retrieved"
     #     assert [ "I found! " source for source in sources], f"The response should mention 'I found! ' added by the formatting function, but was: '{response}'"
     #     assert "Custom Format" in response, "The response should contain the custom formatted output"
-

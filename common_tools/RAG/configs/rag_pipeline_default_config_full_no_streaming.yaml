@@ -12,9 +12,9 @@ inference_pipeline:
   - data_retrieval
   - augmented_generation
 
-pre_treatment:  
+pre_treatment:
+  - RAGPreTreatment.query_standalone_from_history_async  
   - parallel_async:
-    - RAGPreTreatment.query_standalone_from_history_async
     - RAGPreTreatment.query_translation_async
     - RAGPreTreatment.bypassed_query_rewritting_async
   - RAGPreTreatment.analyse_query_for_metadata_async

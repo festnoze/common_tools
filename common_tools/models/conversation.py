@@ -42,7 +42,7 @@ class Conversation:
         return self.messages[-1]
     
     @staticmethod
-    def get_user_query(query_or_conv: Union[str, 'Conversation']) -> str:
+    def get_query(query_or_conv: Union[str, 'Conversation']) -> str:
         if isinstance(query_or_conv, str):
             return query_or_conv.strip()
         elif type(query_or_conv).__name__ == Conversation.__name__: #isinstance(query_or_conv, Conversation):

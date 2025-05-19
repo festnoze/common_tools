@@ -20,7 +20,7 @@ class RAGGuardrails:
     async def guardrails_query_analysis_async(query:Union[str, Conversation]) -> bool:
         #TODO: FAKED: Add real implementation!!!
         await asyncio.sleep(1.5) 
-        user_query = Conversation.get_user_query(query)
+        user_query = Conversation.get_query(query)
         if user_query == "bad query":
             return False
         return True

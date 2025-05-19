@@ -94,5 +94,6 @@ class RAGAugmentedGeneration:
 
         async for chunk in Llm.invoke_as_async_stream('RAG augmented generation', rag_chain, context):
             chunk_final = chunk if (not is_stream_decoded or isinstance(chunk, str)) else chunk.decode('utf-8').replace(Llm.new_line_for_stream_over_http, '\n')
-            all_chunks_output.append(chunk_final)
+            if all_chunks_output is not None:
+                all_chunks_output.append(chunk_final)
             yield chunk_final 
