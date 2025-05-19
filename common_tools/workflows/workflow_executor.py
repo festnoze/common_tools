@@ -19,7 +19,7 @@ class WorkflowExecutor:
         
         self.available_classes = available_classes
 
-    async def execute_workflow_async(self, workflow_config=None, previous_results=None, kwargs_values=None, config_entry_point_name=None):
+    async def execute_workflow_async(self, workflow_config=None, previous_results=None, kwargs_values=None, config_entry_point_name=None, retry_count_upon_exception=0):
         if workflow_config is None:
             workflow_config = self._determine_workflow_config(config_entry_point_name)
         else:
@@ -33,7 +33,7 @@ class WorkflowExecutor:
         results = []
         for step in workflow_config:
             try:
-                results = await self.execute_step_async(step, previous_results, kwargs_values, workflow_config)
+                results = await self.execute_step_async(step, previous_results, kwargs_values, workflow_config, retry_count_upon_exception)
                 previous_results = results
             except EndWorkflowException as epe:
                 raise epe
@@ -47,61 +47,61 @@ class WorkflowExecutor:
         else:
             raise ValueError('Starting step must either be provided or a step named "start" must be set in config.')
 
-    async def execute_step_async(self, step, previous_results, kwargs_values, workflow_config):
+    async def execute_step_async(self, step, previous_results, kwargs_values, workflow_config, retry_count_upon_exception=0):
         if isinstance(step, dict):
-            return await self.execute_dict_step_async(step, previous_results, kwargs_values)
+            return await self.execute_dict_step_async(step, previous_results, kwargs_values, retry_count_upon_exception)
         elif isinstance(step, list):
-            return await self.execute_list_step_async(step, previous_results, kwargs_values)
+            return await self.execute_list_step_async(step, previous_results, kwargs_values, retry_count_upon_exception)
         elif isinstance(step, str):
-            return await self.execute_str_step_async(step, previous_results, kwargs_values, workflow_config)
+            return await self.execute_str_step_async(step, previous_results, kwargs_values, workflow_config, retry_count_upon_exception)
         else:
             raise TypeError(f"Invalid step type: {type(step).__name__}")
 
-    async def execute_dict_step_async(self, step, previous_results, kwargs_values):
+    async def execute_dict_step_async(self, step, previous_results, kwargs_values, retry_count_upon_exception=0):
         if 'parallel_async' in step:
             parallel_steps = step.get('parallel_async')
-            parallel_results = await self.execute_parallel_steps_async(parallel_steps, previous_results, kwargs_values)
+            parallel_results = await self.execute_parallel_steps_async(parallel_steps, previous_results, kwargs_values, retry_count_upon_exception)
             return self.flatten_tuples(parallel_results)
         else:
             # Treat the dict as a sub-workflow
-            sub_workflow_results = await self.execute_workflow_async(step, previous_results, kwargs_values)
+            sub_workflow_results = await self.execute_workflow_async(step, previous_results, kwargs_values, retry_count_upon_exception=retry_count_upon_exception)
             return self.flatten_tuples(sub_workflow_results)
 
-    async def execute_list_step_async(self, step, previous_results, kwargs_values):
-        sub_workflow_results = await self.execute_workflow_async(step, previous_results, kwargs_values)
+    async def execute_list_step_async(self, step, previous_results, kwargs_values, retry_count_upon_exception=0):
+        sub_workflow_results = await self.execute_workflow_async(step, previous_results, kwargs_values, retry_count_upon_exception=retry_count_upon_exception)
         return self.flatten_tuples(sub_workflow_results)
 
-    async def execute_str_step_async(self, step, previous_results, kwargs_values, workflow_config):
+    async def execute_str_step_async(self, step, previous_results, kwargs_values, workflow_config, retry_count_upon_exception=0):
         if 'parallel_async' in step:
             if step in workflow_config:
                 parallel_steps = workflow_config[step]
-                parallel_results = await self.execute_parallel_steps_async(parallel_steps, previous_results, kwargs_values)
+                parallel_results = await self.execute_parallel_steps_async(parallel_steps, previous_results, kwargs_values, retry_count_upon_exception)
                 return self.flatten_tuples(parallel_results)
             else:
                 raise KeyError(f"Key '{step}' not found in the current workflow configuration.")
         elif step in self.config and isinstance(self.config[step], (list, dict)):
-            sub_workflow_results = await self.execute_workflow_async(self.config[step], previous_results, kwargs_values)
+            sub_workflow_results = await self.execute_workflow_async(self.config[step], previous_results, kwargs_values, retry_count_upon_exception=retry_count_upon_exception)
             return self.flatten_tuples(sub_workflow_results)
         else:
-            result = await self.execute_function_async(step, previous_results, kwargs_values)
+            result = await self.execute_function_async(step, previous_results, kwargs_values, retry_count_upon_exception)
             return [result]
 
-    async def execute_parallel_steps_async(self, steps, previous_results, kwargs_values):
-        tasks = [self.execute_func_or_workflow_async(step, previous_results, kwargs_values) for step in steps]
+    async def execute_parallel_steps_async(self, steps, previous_results, kwargs_values, retry_count_upon_exception=0):
+        tasks = [self.execute_func_or_workflow_async(step, previous_results, kwargs_values, retry_count_upon_exception) for step in steps]
         return await asyncio.gather(*tasks)
 
-    async def execute_func_or_workflow_async(self, step, previous_results, kwargs_values):
+    async def execute_func_or_workflow_async(self, step, previous_results, kwargs_values, retry_count_upon_exception=0):
         if self._is_sub_workflow(step):
             inner_workflow_config = self.config[step]
-            return await self.execute_workflow_async(inner_workflow_config, previous_results, kwargs_values)
+            return await self.execute_workflow_async(inner_workflow_config, previous_results, kwargs_values, retry_count_upon_exception=retry_count_upon_exception)
         else:
-            return await self.execute_function_async(step, previous_results, kwargs_values)
+            return await self.execute_function_async(step, previous_results, kwargs_values, retry_count_upon_exception)
 
     def _is_sub_workflow(self, step):
         return isinstance(step, str) and step in self.config and isinstance(self.config[step], (list, dict))
 
     @MethodDecorator.print_func_execution_infos(display_param_value="class_and_function_name")
-    def execute_function(self, class_and_function_name: str, previous_results: list, kwargs_values: dict):
+    def execute_function(self, class_and_function_name: str, previous_results: list, kwargs_values: dict, retry_count_upon_exception=0):
         func = Reflexion.get_static_method(class_and_function_name, self.available_classes)
         func_kwargs = self._prepare_arguments_for_function(func, previous_results, kwargs_values)
         
@@ -116,10 +116,14 @@ class WorkflowExecutor:
         except EndWorkflowException as ewe:
             raise ewe
         except Exception as e:
-            self._raise_fail_func_execution(class_and_function_name, previous_results, kwargs_values, e)
+            if retry_count_upon_exception > 0:
+                print(f"Exception occurred in {class_and_function_name}, retrying... ({retry_count_upon_exception} attempts left)")
+                yield from self.execute_function(class_and_function_name, previous_results, kwargs_values, retry_count_upon_exception - 1)
+            else:
+                self._raise_fail_func_execution(class_and_function_name, previous_results, kwargs_values, e)
 
     @MethodDecorator.print_func_execution_infos(display_param_value="class_and_function_name")
-    async def execute_function_async(self, class_and_function_name: str, previous_results: list, kwargs_values: dict):
+    async def execute_function_async(self, class_and_function_name: str, previous_results: list, kwargs_values: dict, retry_count_upon_exception=0):
         func = Reflexion.get_static_method(class_and_function_name, self.available_classes)
         func_kwargs = self._prepare_arguments_for_function(func, previous_results, kwargs_values)
         try:
@@ -136,7 +140,11 @@ class WorkflowExecutor:
         except EndWorkflowException as epe:
             raise epe   
         except Exception as e:
-            self._raise_fail_func_execution(class_and_function_name, previous_results, kwargs_values, e)
+            if retry_count_upon_exception > 0:
+                print(f"Exception occurred in {class_and_function_name}, retrying... ({retry_count_upon_exception} attempts left)")
+                return await self.execute_function_async(class_and_function_name, previous_results, kwargs_values, retry_count_upon_exception - 1)
+            else:
+                self._raise_fail_func_execution(class_and_function_name, previous_results, kwargs_values, e)
 
     def _add_function_output_names_and_values_to_kwargs(self, func, function_results, kwargs_values):
         return_info = self._get_function_output_names(func)

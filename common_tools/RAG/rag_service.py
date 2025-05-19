@@ -42,6 +42,21 @@ class RagServiceFactory:
         )
 
 class RagService:
+    llms_infos: list[LlmInfo] = None
+    llm_1 = None
+    llm_2 = None
+    llm_3 = None
+    embedding = None
+    embedding_model_name = None
+    vector_db_name: str = None
+    vector_db_type: VectorDbType = None
+    vector_db_base_path: str = None
+    vector_db_full_name = None
+    vector_db_path: str = None
+    all_documents_json_file_path: str = None
+    vectorstore: VectorStore = None
+    langchain_documents: list[Document] = None
+
     def __init__(self, llms_or_info: Optional[Union[LlmInfo, Runnable, list]], embedding_model:EmbeddingModel= None, vector_db_base_path:str = None, vector_db_type:VectorDbType = VectorDbType('chroma'), vector_db_base_name:str = 'main', documents_json_filename:str = None):
         # Init default parameters values if not setted
         if not vector_db_base_path: vector_db_base_path = './storage'
@@ -95,10 +110,8 @@ class RagService:
     def init_llm(self, llm_or_info: Optional[Union[LlmInfo, Runnable]], test_inference:bool = False) -> Runnable:
         if isinstance(llm_or_info, LlmInfo) or (isinstance(llm_or_info, list) and any(llm_or_info) and isinstance(llm_or_info[0], LlmInfo)):            
             llm = LangChainFactory.create_llms_from_infos(llm_or_info)[0]
-            if test_inference:
-                if not Llm.test_llm_inference(llm):                    
-                    model_name = llm.model_name if hasattr(llm, 'model_name') else llm.model if hasattr(llm, 'model') else llm.__class__.__name__
-                    raise ValueError(f"Inference test failed for model: '{model_name}'.")
+            if test_inference: 
+                Llm.test_llm_inference(llm)
             return llm
         elif isinstance(llm_or_info, Runnable):
             return llm_or_info

@@ -37,13 +37,13 @@ class Test_RAGInferencePipeline:
     async def test_run_semantic_only_pipeline_dynamic_with_default_config_async(self):
         query = "What is blabla?"
         results = await self.rag_pipeline.run_pipeline_dynamic_no_streaming_async(query, include_bm25_retrieval= False)
-        assert results == f"Mocked {self.augmented_answer_generation_method_name} called"
+        assert results == ["Mocked response_post_treatment_async called"]
 
     @pytest.mark.asyncio
     async def test_run_semantic_and_bm25_retrieval_pipeline_dynamic_async(self):
         query = "Tell me about blabla?"
         results = await self.rag_pipeline.run_pipeline_dynamic_no_streaming_async(query, include_bm25_retrieval=True)
-        assert results == f"Mocked {self.augmented_answer_generation_method_name} called"
+        assert results == ["Mocked response_post_treatment_async called"]
     
     # def test_run_with_custom_post_processing_function(self):
     #     query = "What is AI?"

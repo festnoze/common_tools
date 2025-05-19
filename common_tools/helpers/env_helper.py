@@ -143,6 +143,24 @@ class EnvHelper:
             raise ValueError(f"Error parsing Llm_infos value: {e}")
 
     @staticmethod
+    def get_max_conversations_by_day() -> int:
+        var_name = 'MAX_CONVERSATIONS_BY_DAY'
+        value_str = EnvHelper.get_env_variable_value_by_name(var_name)
+        try:
+            return int(value_str)
+        except ValueError:
+            raise ValueError(f"Invalid value for '{var_name}': '{value_str}' (cannot be converted to an integer)")
+
+    @staticmethod
+    def get_max_messages_by_conversation() -> int:
+        var_name = 'MAX_MESSAGES_BY_CONVERSATION'
+        value_str = EnvHelper.get_env_variable_value_by_name(var_name)
+        try:
+            return int(value_str)
+        except ValueError:
+            raise ValueError(f"Invalid value for '{var_name}': '{value_str}' (cannot be converted to an integer)")
+        
+    @staticmethod
     def _get_llms_json() -> str:
         return EnvHelper.get_env_variable_value_by_name('LLMS_JSON')  
     

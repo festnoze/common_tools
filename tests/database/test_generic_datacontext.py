@@ -1,11 +1,15 @@
+import asyncio
+import uuid
 import os
 import pytest
-import asyncio
+import tempfile
+from pathlib import Path
 from uuid import uuid4
 from sqlalchemy import Column, String
 from sqlalchemy.orm import declarative_base
 #
 from common_tools.database.generic_datacontext import GenericDataContext
+from common_tools.helpers.txt_helper import txt
 
 pytest_plugins = ["pytest_asyncio"]
 
@@ -20,17 +24,22 @@ class SampleEntity(Base):
 
 
 class TestGenericDataContext:
-    db_path_or_url = "tests/infrastructure/generic_test.db"
-
     def setup_method(self):
-        self.data_context = GenericDataContext(Base, db_path_or_url=self.db_path_or_url)
+        # Create a temporary directory for the test database
+        self.test_dir = Path(tempfile.gettempdir())
+        
+        # Use an absolute path for the database file
+        self.db_path = self.test_dir / f"test_db_{uuid.uuid4()}.db"
+        self._remove_db_file()
+        self.data_context = GenericDataContext(Base, db_path_or_url=str(self.db_path))
         asyncio.run(self.data_context.empty_all_database_tables_async())
 
     def teardown_method(self):
         asyncio.run(self.data_context.empty_all_database_tables_async())
         self.data_context.engine.dispose()
-        if os.path.exists(self.db_path_or_url):
-            os.remove(self.db_path_or_url)
+        self._remove_db_file()
+
+    ### TESTS ###
 
     @pytest.mark.asyncio
     async def test_add_entity(self):
@@ -97,3 +106,10 @@ class TestGenericDataContext:
         await self.data_context.empty_all_database_tables_async()
         results = await self.data_context.get_all_entities_async(SampleEntity)
         assert len(results) == 0
+
+    def _remove_db_file(self):
+        try:
+            if self.db_path.exists():
+                os.remove(self.db_path)
+        except Exception as e:
+            txt.print(f"/!\\ Fails to remove test DB file: {e}")

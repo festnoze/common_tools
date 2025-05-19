@@ -14,6 +14,7 @@ from common_tools.helpers.method_decorator_helper import MethodDecorator
 
 class RAGAugmentedGeneration:
     augmented_generation_prompt:str = None
+    augmented_generation_audio_prompt:str = None
     
     @staticmethod
     def rag_augmented_answer_generation_no_streaming_sync(
@@ -52,24 +53,30 @@ class RAGAugmentedGeneration:
 
     @staticmethod
     @MethodDecorator.print_func_execution_infos()
-    async def rag_augmented_answer_generation_streaming_async(rag: RagService, query:Union[str, Conversation], retrieved_chunks: list, analysed_query: QuestionAnalysisBase, is_stream_decoded = False, all_chunks_output: list[str] = [], function_for_specific_formating_retrieved_docs = None):
+    async def rag_augmented_answer_generation_streaming_async(rag: RagService, query:Union[str, Conversation], retrieved_chunks: list, analysed_query: QuestionAnalysisBase, is_stream_decoded: bool = False, is_audio_query: bool = False, all_chunks_output: list[str] = [], function_for_specific_formating_retrieved_docs = None):
         # Select the smallest llm for the augmented generation task, as it takes lots of tokens
-        async for chunk in RAGAugmentedGeneration.augmented_answer_generation_from_llm_streaming_async(rag.llm_1, query, retrieved_chunks, analysed_query, is_stream_decoded, all_chunks_output, function_for_specific_formating_retrieved_docs):
+        async for chunk in RAGAugmentedGeneration.augmented_answer_generation_from_llm_streaming_async(rag.llm_1, query, retrieved_chunks, analysed_query, is_stream_decoded, is_audio_query, all_chunks_output, function_for_specific_formating_retrieved_docs):
             yield chunk
     
     @staticmethod
-    async def augmented_answer_generation_from_llm_streaming_async(llm_or_chain: Runnable, query:Union[str, Conversation], retrieved_chunks: list, analysed_query: QuestionAnalysisBase, is_stream_decoded = False, all_chunks_output: list[str] = [], function_for_specific_formating_retrieved_docs = None):
+    async def augmented_answer_generation_from_llm_streaming_async(llm_or_chain: Runnable, query:Union[str, Conversation], retrieved_chunks: list, analysed_query: QuestionAnalysisBase, is_stream_decoded = False, is_audio_query: bool = False, all_chunks_output: list[str] = [], function_for_specific_formating_retrieved_docs = None):
         if retrieved_chunks and any(retrieved_chunks) and isinstance(retrieved_chunks[0], tuple): 
             retrieved_chunks = [doc[0] for doc in retrieved_chunks] # Remove scores if present
 
         if not RAGAugmentedGeneration.augmented_generation_prompt:
             RAGAugmentedGeneration.augmented_generation_prompt = Ressource.get_rag_augmented_generation_prompt_generic()
-        augmented_generation_prompt = RAGAugmentedGeneration.augmented_generation_prompt
+        if not RAGAugmentedGeneration.augmented_generation_audio_prompt:
+            RAGAugmentedGeneration.augmented_generation_audio_prompt = Ressource.get_rag_augmented_generation_audio_prompt_generic()
+        
+        if is_audio_query:
+            augmented_generation_prompt = RAGAugmentedGeneration.augmented_generation_audio_prompt
+        else:
+            augmented_generation_prompt = RAGAugmentedGeneration.augmented_generation_prompt
 
         question_w_history = Conversation.conversation_history_as_str(query)
         augmented_generation_prompt = augmented_generation_prompt.replace("{question}", question_w_history)
         
-        # handle request for respond in a specific language
+        # Handle request for respond in a specific language
         additional_instructions = ''
         if hasattr(analysed_query, 'detected_language') and not analysed_query.detected_language.__contains__("english"):
             additional_instructions = Ressource.get_prefiltering_translation_instructions_prompt()

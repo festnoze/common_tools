@@ -74,10 +74,10 @@ class RagInferencePipeline:
                 'RAGPostTreatment': RAGPostTreatment
             }             
     
-    async def run_pipeline_dynamic_streaming_async(self, query: Union[str, Conversation], include_bm25_retrieval: bool = False, give_score=True, pipeline_config_file_path: str = 'rag_pipeline_default_config_wo_AG_for_streaming.yaml', format_retrieved_docs_function = None, all_chunks_output:list = []):
+    async def run_pipeline_dynamic_streaming_async(self, query: Union[str, Conversation], include_bm25_retrieval: bool = False, give_score=True, pipeline_config_file_path: str = 'rag_pipeline_default_config_wo_AG_for_streaming.yaml', format_retrieved_docs_function = None, all_chunks_output:list = [], retry_count_upon_exception: int = 0):
         """Run the full rag inference pipeline: use dynamic pipeline until augmented generation which is streamed async"""
         try:
-            analysed_query, retrieved_chunks_list = await self.run_pipeline_dynamic_but_augmented_generation_async(query, include_bm25_retrieval, give_score, pipeline_config_file_path, format_retrieved_docs_function)
+            analysed_query, retrieved_chunks_list = await self.run_pipeline_dynamic_but_augmented_generation_async(query, include_bm25_retrieval, give_score, pipeline_config_file_path, format_retrieved_docs_function, retry_count_upon_exception)
         except EndWorkflowException as ex:
             yield ex.message
             return
@@ -86,11 +86,24 @@ class RagInferencePipeline:
             return
         
         retrieved_chunks = retrieved_chunks_list[0]
-        async for chunk in self.workflow_concrete_classes['RAGAugmentedGeneration'].rag_augmented_answer_generation_streaming_async(self.rag, query, retrieved_chunks, analysed_query, format_retrieved_docs_function):
-            all_chunks_output.append(chunk)
-            yield chunk
+        rag_augmented_answer_generation_retry_count = retry_count_upon_exception
+        
+        while True:
+            try:
+                rag_augmented_answer_generation_generator = self.workflow_concrete_classes['RAGAugmentedGeneration'].rag_augmented_answer_generation_streaming_async(self.rag, query, retrieved_chunks, analysed_query, format_retrieved_docs_function)
+                async for chunk in rag_augmented_answer_generation_generator:
+                    all_chunks_output.append(chunk)
+                    yield chunk
+                break
+            except Exception as ex:
+                rag_augmented_answer_generation_retry_count -= 1
+                yield 'Error: ' + str(ex)
+                if rag_augmented_answer_generation_retry_count <= 0:
+                    break
+                print(f"Exception occurred in rag_augmented_answer_generation_streaming_async, retrying... ({rag_augmented_answer_generation_retry_count} attempts left)")
+
             
-    async def run_pipeline_dynamic_but_augmented_generation_async(self, query: Union[str, Conversation], include_bm25_retrieval: bool = False, give_score=True, pipeline_config_file_path: str = 'rag_pipeline_default_config_wo_AG_for_streaming.yaml', format_retrieved_docs_function = None):
+    async def run_pipeline_dynamic_but_augmented_generation_async(self, query: Union[str, Conversation], include_bm25_retrieval: bool = False, give_score=True, pipeline_config_file_path: str = 'rag_pipeline_default_config_wo_AG_for_streaming.yaml', format_retrieved_docs_function = None, retry_count_upon_exception: int = 0):
         config = Ressource.load_ressource_file(pipeline_config_file_path, Ressource.rag_configs_package_name)
         workflow_executor = WorkflowExecutor(config, self.workflow_concrete_classes)      
         kwargs_values = {
@@ -100,7 +113,7 @@ class RagInferencePipeline:
             'give_score': give_score,
             'format_retrieved_docs_function': format_retrieved_docs_function }      
         try:
-            guardrails_result, retrieved_chunks = await workflow_executor.execute_workflow_async(kwargs_values=kwargs_values)
+            guardrails_result, retrieved_chunks = await workflow_executor.execute_workflow_async(kwargs_values=kwargs_values, retry_count_upon_exception=retry_count_upon_exception)
         
         except EndWorkflowException as ex:
             raise ex
@@ -133,7 +146,7 @@ class RagInferencePipeline:
                 # Guardrails result, check it
                 self.check_for_guardrails(result)
 
-    async def run_pipeline_dynamic_no_streaming_async(self, query: Union[str, Conversation], include_bm25_retrieval: bool = False, give_score=True, pipeline_config_file_path: str = 'rag_pipeline_default_config_full_no_streaming.yaml', format_retrieved_docs_function = None) -> str:
+    async def run_pipeline_dynamic_no_streaming_async(self, query: Union[str, Conversation], include_bm25_retrieval: bool = False, give_score=True, pipeline_config_file_path: str = 'rag_pipeline_default_config_full_no_streaming.yaml', format_retrieved_docs_function = None, retry_count_upon_exception: int = 0) -> str:
         """Run the full rag inference pipeline without streaming async"""
         config = Ressource.load_ressource_file(pipeline_config_file_path, Ressource.rag_configs_package_name)
         workflow_executor = WorkflowExecutor(config, self.workflow_concrete_classes)
@@ -146,7 +159,7 @@ class RagInferencePipeline:
             'format_retrieved_docs_function': format_retrieved_docs_function }
         
         try:
-            results = await workflow_executor.execute_workflow_async(kwargs_values=kwargs_values)
+            results = await workflow_executor.execute_workflow_async(kwargs_values=kwargs_values, retry_count_upon_exception=retry_count_upon_exception)
         except EndWorkflowException as ex:
             raise ex
         except Exception as ex:

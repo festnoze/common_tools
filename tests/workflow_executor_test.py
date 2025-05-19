@@ -309,11 +309,11 @@ class TestWorkflowExecutor:
 
     def test_execute_function_invalid_class(self):
         with pytest.raises(ValueError):
-            self.executor.execute_function('InvalidClass.method', [], {})
+            list(self.executor.execute_function('InvalidClass.method', [], {})) # Use list() to consume the generator
 
     def test_execute_function_invalid_method(self):
         with pytest.raises(AttributeError):
-            self.executor.execute_function('workflow_executor_test_methods.invalid_method', [], {})
+            list(self.executor.execute_function('workflow_executor_test_methods.invalid_method', [], {})) # Use list() to consume the generator
     
     @pytest.mark.asyncio
     async def test_execute_function_async_invalid_class(self):
@@ -397,45 +397,36 @@ class TestWorkflowExecutor:
         param_annotation = list[Document]
         assert self.executor._is_value_matching_annotation([], param_annotation)
 
-    def test_get_function_ouptut_names_with_single_output(self):
+    def test_get_function_output_names_with_single_output(self):
         @workflow_output('result')
         async def dummy_function():
-            pass
-        return_info = self.executor._get_function_workflow_outputs(dummy_function)
-        assert return_info == {'workflow_outputs': ['result']}
+            return 'value'
+        return_info = self.executor._get_function_output_names(dummy_function)
+        assert return_info == {'output_names': ['result']}
 
-    def test__function_ouptut_names_with_multiple_outputs(self):
+    def test_get_function_output_names_with_multiple_outputs(self):
         @workflow_output('result1', 'result2')
         async def dummy_function():
-            pass
-        return_info = self.executor._get_function_workflow_outputs(dummy_function)
-        assert return_info == {'workflow_outputs': ['result1', 'result2']}
+            return 'value1', 'value2'
+        return_info = self.executor._get_function_output_names(dummy_function)
+        assert return_info == {'output_names': ['result1', 'result2']}
 
     @pytest.mark.asyncio
     async def test_execute_function_single_output(self):
-        async def dummy_function(a, b):
-            return a + b
-        dummy_function._workflow_output = 'sum'
-        self.executor.get_static_method = lambda x: dummy_function
         kwargs = {'a': 2, 'b': 3}
-        await self.executor.execute_function_async('dummy_function', [], kwargs)
+        await self.executor.execute_function_async('workflow_executor_test_methods.step_one_w_workflow_output_async', [], kwargs)
         assert kwargs['sum'] == 5
 
     @pytest.mark.asyncio
     async def test_execute_function_multiple_outputs(self):
-        async def dummy_function(a, b):
-            return a + b, a * b
-        dummy_function._workflow_output = ['sum', 'product']
-        self.executor.get_static_method = lambda x: dummy_function
         kwargs = {'a': 2, 'b': 3}
-        await self.executor.execute_function_async('dummy_function', [], kwargs)
+        await self.executor.execute_function_async('workflow_executor_test_methods.step_four_w_2_workflow_outputs_async', [], kwargs)
         assert kwargs['sum'] == 5
         assert kwargs['product'] == 6
 
     @pytest.mark.asyncio
     async def test_execute_workflow_with_named_outputs(self):
-        self.executor.get_static_method = lambda x: workflow_executor_test_methods.step_one_w_workflow_output_async if x == 'step_one' else workflow_executor_test_methods.step_two_w_workflow_output_async
-        steps_config = ['step_one', 'step_two']
+        steps_config = ['workflow_executor_test_methods.step_one_w_workflow_output_async', 'workflow_executor_test_methods.step_two_w_workflow_output_async']
         kwargs = {'a': 2, 'b': 3}
         results = await self.executor.execute_workflow_async(steps_config, kwargs_values=kwargs)
         assert kwargs['sum'] == 5
@@ -449,6 +440,98 @@ class TestWorkflowExecutor:
     def test_prepare_arguments_for_function(self, kwargs_value, previous_results, expected_kwargs):
         prepared_kwargs = self.executor._prepare_arguments_for_function(workflow_executor_test_methods.step_five_async, previous_results, kwargs_value)
         assert prepared_kwargs == expected_kwargs, f"Expected {expected_kwargs} but got {prepared_kwargs}"
+        
+    ### Tests for the retry feature: ###
+
+    @pytest.mark.asyncio
+    async def test_execute_function_async_with_retry_success(self):
+        # Test that function succeeds after retries
+        workflow_executor_test_methods.reset_retry_counter()
+        result = await self.executor.execute_function_async(
+            'workflow_executor_test_methods.function_that_fails_first_n_times_async', 
+            [2], 
+            {}, 
+            retry_count_upon_exception=3
+        )
+        assert result == 'Success after 2 failures'
+        assert workflow_executor_test_methods.retry_counter == 3  # Initial call + 2 retries
+        
+    @pytest.mark.asyncio
+    async def test_execute_function_async_with_retry_failure(self):
+        # Test that function fails after all retries are exhausted
+        workflow_executor_test_methods.reset_retry_counter()
+        with pytest.raises(RuntimeError):
+            await self.executor.execute_function_async(
+                'workflow_executor_test_methods.function_that_fails_first_n_times_async', 
+                [5], 
+                {}, 
+                retry_count_upon_exception=2
+            )
+        assert workflow_executor_test_methods.retry_counter == 3  # Initial call + 2 retries
+        
+    def test_execute_function_with_retry_success(self):
+        # Test that function succeeds after retries
+        workflow_executor_test_methods.reset_retry_counter()
+        result = list(self.executor.execute_function(
+            'workflow_executor_test_methods.function_that_fails_first_n_times', 
+            [2], 
+            {}, 
+            retry_count_upon_exception=3
+        ))
+        assert result[0] == 'Success after 2 failures'
+        assert workflow_executor_test_methods.retry_counter == 3  # Initial call + 2 retries
+        
+    def test_execute_function_with_retry_failure(self):
+        # Test that function fails after all retries are exhausted
+        workflow_executor_test_methods.reset_retry_counter()
+        with pytest.raises(RuntimeError):
+            list(self.executor.execute_function(
+                'workflow_executor_test_methods.function_that_fails_first_n_times', 
+                [5], 
+                {}, 
+                retry_count_upon_exception=2
+            ))
+        assert workflow_executor_test_methods.retry_counter == 3  # Initial call + 2 retries
+        
+    @pytest.mark.asyncio
+    async def test_execute_workflow_async_with_retry(self):
+        # Test that workflow retries when a step fails
+        workflow_executor_test_methods.reset_retry_counter()
+        workflow_config = [
+            'workflow_executor_test_methods.function_that_fails_first_n_times_async'
+        ]
+        result = await self.executor.execute_workflow_async(
+            workflow_config, 
+            previous_results=[1],  # Pass n=1 to the function
+            retry_count_upon_exception=2
+        )
+        assert result[0] == 'Success after 1 failures'
+        assert workflow_executor_test_methods.retry_counter == 2  # Initial call + 1 retry
+        
+    @pytest.mark.asyncio
+    async def test_execute_function_async_do_not_retry_when_success(self):
+        # Test that retry is not used when the function succeeds on first call
+        workflow_executor_test_methods.reset_retry_counter()
+        result = await self.executor.execute_function_async(
+            'workflow_executor_test_methods.function_that_succeed_only_on_first_call_async', 
+            [], 
+            {}, 
+            retry_count_upon_exception=3
+        )
+        assert result == 'Success on first call'
+        assert workflow_executor_test_methods.retry_counter == 1  # Only the initial call
+        
+    def test_execute_function_do_not_retry_when_success(self):
+        # Test that retry is not used when the function succeeds on first call
+        workflow_executor_test_methods.reset_retry_counter()
+        result = list(self.executor.execute_function(
+            'workflow_executor_test_methods.function_that_succeed_only_on_first_call', 
+            [], 
+            {}, 
+            retry_count_upon_exception=3
+        ))
+        assert result[0] == 'Success on first call'
+        assert workflow_executor_test_methods.retry_counter == 1  # Only the initial call
 
 class workflow_executor_test_methods:
     async def step_one_async(a, b):
@@ -467,7 +550,42 @@ class workflow_executor_test_methods:
         return x + y + z
     
     def faulty_function():
-            raise RuntimeError('Test exception')
+        raise RuntimeError('Test exception')
+        
+    # Counter to track number of calls for retry tests
+    retry_counter = 0
+    
+    @classmethod
+    def reset_retry_counter(cls):
+        cls.retry_counter = 0
+        
+    @classmethod
+    async def function_that_fails_first_n_times_async(cls, n):
+        cls.retry_counter += 1
+        if cls.retry_counter <= n:
+            raise RuntimeError(f'Failing attempt {cls.retry_counter} of {n}')
+        return f'Success after {n} failures'
+    
+    @classmethod
+    def function_that_fails_first_n_times(cls, n):
+        cls.retry_counter += 1
+        if cls.retry_counter <= n:
+            raise RuntimeError(f'Failing attempt {cls.retry_counter} of {n}')
+        return f'Success after {n} failures'
+        
+    @classmethod
+    async def function_that_succeed_only_on_first_call_async(cls):
+        cls.retry_counter += 1
+        if cls.retry_counter > 1:
+            raise RuntimeError(f'This function should only be called once, but was called {cls.retry_counter} times')
+        return 'Success on first call'
+    
+    @classmethod
+    def function_that_succeed_only_on_first_call(cls):
+        cls.retry_counter += 1
+        if cls.retry_counter > 1:
+            raise RuntimeError(f'This function should only be called once, but was called {cls.retry_counter} times')
+        return 'Success on first call'
 
     @workflow_output('sum')
     async def step_one_w_workflow_output_async(a, b):

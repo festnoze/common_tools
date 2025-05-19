@@ -351,19 +351,19 @@ class Llm:
                 yield chunk
 
     @staticmethod       
-    def test_llm_inference(llm:BaseChatModel) -> float:
+    def test_llm_inference(llm:BaseChatModel):
         model_name = llm.model_name if hasattr(llm, 'model_name') else llm.model if hasattr(llm, 'model') else llm.__class__.__name__
         txt.print(f"> Testing inference for model: {model_name} LLM")
         start_time = time.time()
         try:
             answer = llm.invoke("quelles étaient les capitales de la CEE ?")
         except Exception as e:
-            txt.print(f"/!\\ Inference test failed for model: '{model_name}'/!\\: {e}")
-            return 0.0
+            err_msg = f"/!\\ Inference test failed for model: '{model_name}'/!\\: {e}"
+            txt.print(err_msg)
+            raise ValueError(err_msg)
         
         elapsed_time = time.time() - start_time
         txt.print(f"- Inference test succeed for model: '{model_name}' in {elapsed_time:.2f}s. \nModel response: '{Llm.get_content(answer)[:200]}...'.")
-        return elapsed_time
 
     @staticmethod        
     async def test_llm_inference_streaming_async(llm:BaseChatModel) -> float:

@@ -17,14 +17,15 @@ from common_tools.helpers.file_helper import file
 
 class GenericDataContext:
     def __init__(self, base_entities, db_path_or_url='database.db', log_queries_to_terminal=False):
-        if ':' not in db_path_or_url:
-            source_path = os.environ.get("PYTHONPATH").split(';')[-1]
-            db_path_or_url = os.path.join(source_path.replace('\\', '/'), db_path_or_url.replace('\\', '/')).replace('\\', '/')
+        db_full_path_and_name = None
+        if 'http' not in db_path_or_url:
+            source_path = os.environ.get("PYTHONPATH", "").split(';')[-1]
+            db_full_path_and_name = os.path.join(source_path.replace('\\', '/'), db_path_or_url.replace('\\', '/')).replace('\\', '/')
         
         self.base_entities = base_entities
-        self.db_path_or_url = db_path_or_url
-        self.sqlite_sync_db_path = f'sqlite:///{db_path_or_url}'
-        self.sqlite_async_db_path = f'sqlite+aiosqlite:///{db_path_or_url}'
+        self.db_path_or_url = db_full_path_and_name or db_path_or_url
+        self.sqlite_sync_db_path = f'sqlite:///{self.db_path_or_url}'
+        self.sqlite_async_db_path = f'sqlite+aiosqlite:///{self.db_path_or_url}'
 
         if 'http' not in self.db_path_or_url and not file.exists(self.db_path_or_url):
             txt.print(f"/!\\ Database file not found at path: {self.db_path_or_url}")

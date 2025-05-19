@@ -118,6 +118,7 @@ class RAGPreTreatment:
         analysed_query.modified_question = content['modified_question']
         print(f'> Rewritten query: "{analysed_query.modified_question}"')
         return analysed_query
+        
     
     @staticmethod
     @workflow_output('analysed_query')

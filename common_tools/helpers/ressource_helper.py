@@ -65,11 +65,19 @@ class Ressource:
     @staticmethod
     def get_rag_augmented_generation_prompt_generic() -> str:
         return Ressource.load_ressource_file('rag_augmented_generation_query_generic.txt')
+    
+    @staticmethod
+    def get_rag_augmented_generation_audio_prompt_generic() -> str:
+        return Ressource.load_ressource_file('rag_augmented_generation_query_generic_for_audio.txt')
 
     @staticmethod
     def get_rag_augmented_generation_prompt_on_studi() -> str:
         return Ressource.load_ressource_file('rag_augmented_generation_query_on_studi.txt')
 
+    @staticmethod
+    def get_rag_augmented_generation_audio_prompt_on_studi() -> str:
+        return Ressource.load_ressource_file('rag_augmented_generation_query_on_studi_for_audio.txt')
+    
     @staticmethod
     def get_rag_augmented_generation_prompt_on_code() -> str:
         return Ressource.load_ressource_file('rag_augmented_generation_query_on_code.txt')

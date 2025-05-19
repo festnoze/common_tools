@@ -1,3 +1,4 @@
+import pytest
 from unittest.mock import patch, MagicMock
 from langchain_chroma import Chroma
 from langchain_core.documents import Document
@@ -5,16 +6,15 @@ from common_tools.RAG.rag_inference_pipeline.rag_inference_pipeline import RagIn
 from common_tools.RAG.rag_service import RagService
 from common_tools.models.langchain_adapter_type import LangChainAdapterType
 from common_tools.models.llm_info import LlmInfo
-from common_tools.models.embedding_type import EmbeddingType
+from common_tools.models.embedding_model import EmbeddingModel
 
 class TestRagInferencePipelineIntegration:
 
     def setup_method(self):
         # Set up the necessary LLM information for the RAGService
         llms_infos = []
-        #llms_infos.append(LlmInfo(type= LangChainAdapterType.Ollama, model= "phi3", timeout= 80, temperature = 0.5))
-        llms_infos.append(LlmInfo(type= LangChainAdapterType.OpenAI, model= "gpt-3.5-turbo-0125",  timeout= 60, temperature = 0.5))
-        #llms_infos.append(LlmInfo(type=LangChainAdapterType.OpenAI, model="gpt-4o", timeout=80, temperature=0))
+        #llms_infos.append(LlmInfo(type= LangChainAdapterType.Ollama, model= "phi3", timeout=80, temperature=0))
+        llms_infos.append(LlmInfo(type=LangChainAdapterType.Ollama, model="llama3.2:1b", timeout=80, temperature=0))
         
         docs: list[Document] = [
             Document(page_content="Choupicity is the capital of Choupiland.", metadata={"source": "Wikipedia"}),
@@ -25,18 +25,19 @@ class TestRagInferencePipelineIntegration:
 
         with patch.object(RagService, '__init__', return_value=None):
             self.rag_service = RagService()
-            self.rag_service.init_embedding(EmbeddingType.OpenAI_TextEmbedding3Small)
-            self.rag_service.init_inference_llm(llms_infos)
+            self.rag_service.instanciate_embedding(EmbeddingModel.Ollama_AllMiniLM)
+            self.rag_service.instanciate_llms(llms_infos, test_llms_inference=False)
             self.rag_service.langchain_documents = docs
             self.rag_service.vectorstore = Chroma.from_documents(documents= docs, embedding = self.rag_service.embedding)
             #
             self.inference = RagInferencePipeline(self.rag_service)
 
-    def test_inference_pipeline_run_dynamic_with_bm25_retrieval(self):
+    @pytest.mark.asyncio
+    async def test_inference_pipeline_run_dynamic_with_bm25_retrieval(self):
         # Define the query for the test
         query = "Quelle est la capitale de la Choupiland ?"
         
-        response = self.inference.run_pipeline_dynamic(
+        response = await self.inference.run_pipeline_dynamic_no_streaming_async(
             query, 
             include_bm25_retrieval=True, 
             give_score=True, 
@@ -48,12 +49,13 @@ class TestRagInferencePipelineIntegration:
         # assert len(sources) > 0, "There should be at least one source retrieved"
         assert "Choupicity" in response, f"The response should mention the fake capital of Choupiland from the data: 'Choupicity', but was: '{response}'"
 
-    def test_inference_pipeline_run_dynamic_without_bm25_retrieval(self):
+    @pytest.mark.asyncio
+    async def test_inference_pipeline_run_dynamic_without_bm25_retrieval(self):
         # Define the query for the test
         query = "Explain the concept of CCIAPF."
 
         # Run the inference pipeline without BM25 retrieval
-        response = self.inference.run_pipeline_dynamic(
+        response = await self.inference.run_pipeline_dynamic_no_streaming_async(
             query,
             include_bm25_retrieval=False, 
             give_score=True, 
@@ -67,11 +69,12 @@ class TestRagInferencePipelineIntegration:
         #assert [ "I found! " source for source in sources], f"The response should mention 'I found! ' added by the formatting function, but was: '{response}'"
         assert response.lower().__contains__("octopus") or response.lower().__contains__("pieuvre") or response.lower().__contains__("poulpe"), f"The response should mention 'octopus', but was: '{response}'"
 
-    def test_inference_pipeline_run_static_with_bm25_retrieval(self):
+    @pytest.mark.asyncio
+    async def test_inference_pipeline_run_static_with_bm25_retrieval(self):
         # Define the query for the test
         query = "Quelle est la capitale de la Choupiland ?"
         
-        response = self.inference.run_pipeline_static(
+        response = await self.inference.run_pipeline_static_no_streaming_async(
             query, 
             include_bm25_retrieval=True, 
             give_score=True, 
