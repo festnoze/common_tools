@@ -153,42 +153,6 @@ class Llm:
         res = await agent_executor.ainvoke({"input": input})
         return Llm.get_content(res)
     
-    # To rework, now return the function structure to be called and no additional_kwargs are setted in case of function call + cannot handle multiple function calls
-    # @staticmethod
-    # async def invoke_llm_with_tool_async(llm: BaseChatModel, tools: list[any], input: str) -> str:
-    #     prompt = ChatPromptTemplate.from_messages(
-    #         [
-    #             ("system", "You're a helpful AI assistant. You know which tools to use to solve the given user problem."),
-    #             ("human", "{input}"),
-    #             MessagesPlaceholder("agent_scratchpad")
-    #         ]
-    #     )
-
-    #     agent_scratchpad = []
-    #     llm_with_tools = llm.bind_tools(tools)
-    #     messages = await prompt.aformat_messages(input=input, agent_scratchpad=agent_scratchpad)
-       
-    #     while True:
-    #         response = await llm_with_tools.ainvoke(messages)
-
-    #         if response.additional_kwargs and "function_call" in response.additional_kwargs:
-    #             function_call = response.additional_kwargs["function_call"]
-    #             tool_name = function_call["name"]
-    #             tool_args = function_call["arguments"]
-
-    #             tool = next((t for t in tools if t.name == tool_name), None)
-    #             if tool is None:
-    #                 raise ValueError(f"Tool '{tool_name}' not found.")
-
-    #             tool_response = await tool.ainvoke(tool_args)
-
-    #             function_message = FunctionMessage(content=str(tool_response), name=tool_name)
-    #             agent_scratchpad.append(function_message)
-
-    #         else:
-    #             # If no tool was called, return the LLM's response
-    #             return response.content
-
     @staticmethod
     async def invoke_json_llm_with_tools_async(llm_or_chain: Runnable, tools: list[any], input: str) -> str:
         #prompt = hub.pull("hwchase17/openai-tools-agent")

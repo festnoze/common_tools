@@ -38,6 +38,13 @@ class GenericDataContext:
                                 class_=AsyncSession)
 
     def create_database(self):
+        # Ensure the parent directory exists before creating the database
+        if 'http' not in self.db_path_or_url:
+            parent_dir = os.path.dirname(self.db_path_or_url)
+            if parent_dir and not os.path.exists(parent_dir):
+                os.makedirs(parent_dir, exist_ok=True)
+                txt.print(f"Created directory: {parent_dir}")
+        
         sync_engine = create_engine(self.sqlite_sync_db_path, echo=True)
         with sync_engine.begin() as conn:
             self.base_entities.metadata.create_all(bind=conn)
@@ -112,10 +119,12 @@ class GenericDataContext:
                     result = results.scalars().first()
 
                 if fails_if_not_found and not result:
-                    raise ValueError(f"No entity found for '{entity_class.__name__}' with the specified filters.")
+                    filters_str = "".join([str(filter) for filter in filters]) if filters else ""
+                    raise ValueError(f"No entity found for '{entity_class.__name__}' with filters: '{filters_str}'.")
                 return result
             except Exception as e:
-                txt.print(f"/!\\ Fails to retrieve first entity: {e}")
+                filters_str = "".join([str(filter) for filter in filters]) if filters else ""
+                txt.print(f'/!\\ Fails to retrieve first entity with filters: "{filters_str}" - Error: {e}')
                 raise
 
     async def get_all_entities_async(self, entity_class, filters: Optional[List[BinaryExpression]] = None):

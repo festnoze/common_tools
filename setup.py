@@ -20,7 +20,7 @@ with open(os.path.join(this_directory, 'README.md'), encoding='utf-8') as f:
 setup(
     name='common_tools',
     # HOW TO USE: in cmd, u can do: 'set BUILD_VERSION=0.4.14' to override the version to be built.
-    version=os.environ.get('BUILD_VERSION', '0.1.0'), 
+    version=os.environ.get('BUILD_VERSION', '1.0.0'), 
     description='Common tools for AI and generic needs on file, console, json, ...',
     long_description=long_description,
     long_description_content_type='text/markdown',

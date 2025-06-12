@@ -7,6 +7,10 @@ from typing import Any, AsyncGenerator, Generator, Callable
 from functools import partial
 from common_tools.helpers.txt_helper import txt
 
+########################################################################
+### SEE TO RATHER USE new: 'AsyncCallWrapper' class instead of this: ###
+########################################################################
+ 
 class Execute:
 
     # def async_wrapper_to_sync(async_function, *args, **kwargs):
