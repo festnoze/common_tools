@@ -38,7 +38,7 @@ class GenericDataContext:
                                 class_=AsyncSession)
 
     def create_database(self):
-        # Ensure the parent directory exists before creating the database
+        txt.print(">>> Recreating full database & tables")
         if 'http' not in self.db_path_or_url:
             parent_dir = os.path.dirname(self.db_path_or_url)
             if parent_dir and not os.path.exists(parent_dir):
@@ -48,7 +48,7 @@ class GenericDataContext:
         sync_engine = create_engine(self.sqlite_sync_db_path, echo=True)
         with sync_engine.begin() as conn:
             self.base_entities.metadata.create_all(bind=conn)
-        txt.print(">>> Database and tables created successfully.")
+        txt.print(">>> Database & tables creation completed successfully.")
 
     @asynccontextmanager
     async def new_transaction_async(self):

@@ -35,7 +35,7 @@ class SparseVectorEmbedding:
             raise ValueError("SparseVectorEmbedding.file_base_path is not set. Please set it before loading the vectorizer.")   
         filepath = os.path.join(SparseVectorEmbedding.file_base_path, SparseVectorEmbedding.sparse_vectorizer_filename)
         if not file.exists(filepath): 
-            raise ValueError(f"File '{filepath}' not found in {self.load_or_create_vectorizer.__name__}.")
+            raise ValueError(f"File '{filepath}' not found in {self.load_vectorizer.__name__}.")
 
         # Load existing vectorizer from file
         with open(filepath, 'rb') as f:
