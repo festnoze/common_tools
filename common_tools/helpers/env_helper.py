@@ -36,6 +36,10 @@ class EnvHelper:
     @staticmethod
     def get_pinecone_environment():
         return EnvHelper.get_env_variable_value_by_name('PINECONE_ENVIRONMENT')
+
+    @staticmethod
+    def get_use_pinecone_internal_embedding():
+        return txt.get_bool_value_out_of_str_value(EnvHelper.get_env_variable_value_by_name('USE_PINECONE_INTERNAL_EMBEDDING'), fails_if_not_boolean= False)
     
     @staticmethod
     def get_openrouter_api_key():
@@ -76,34 +80,34 @@ class EnvHelper:
         return EnvHelper.get_env_variable_value_by_name('VECTOR_DB_NAME')
     
     @staticmethod
-    def get_BM25_storage_as_db_sparse_vectors() -> bool:
+    def get_BM25_storage_as_db_sparse_vectors(fails_if_not_boolean: bool = False) -> bool:
         var_name = 'BM25_STORAGE_AS_DB_SPARSE_VECTORS'
         str_value = EnvHelper.get_env_variable_value_by_name(var_name)
-        return txt.get_bool_value_out_of_str_value(str_value, var_name)
+        return txt.get_bool_value_out_of_str_value(str_value, fails_if_not_boolean= fails_if_not_boolean)
 
     @staticmethod
-    def get_is_common_db_for_sparse_and_dense_vectors() -> bool:
+    def get_is_common_db_for_sparse_and_dense_vectors(fails_if_not_boolean: bool = False) -> bool:
         var_name = 'IS_COMMON_DB_FOR_SPARSE_AND_DENSE_VECTORS'
         str_value = EnvHelper.get_env_variable_value_by_name(var_name)
-        return txt.get_bool_value_out_of_str_value(str_value, var_name)
+        return txt.get_bool_value_out_of_str_value(str_value, fails_if_not_boolean= fails_if_not_boolean)
     
     @staticmethod
-    def get_is_summarized_data() -> bool:
+    def get_is_summarized_data(fails_if_not_boolean: bool = False) -> bool:
         var_name = 'IS_SUMMARIZED_DATA'
         str_value = EnvHelper.get_env_variable_value_by_name(var_name)
-        return txt.get_bool_value_out_of_str_value(str_value, var_name) 
+        return txt.get_bool_value_out_of_str_value(str_value, fails_if_not_boolean= fails_if_not_boolean) 
     
     @staticmethod
     def get_is_questions_created_from_data(fails_if_unfound_value = True) -> bool:
         var_name = 'IS_QUESTIONS_CREATED_FROM_DATA'
         str_value = EnvHelper.get_env_variable_value_by_name(var_name)
-        return txt.get_bool_value_out_of_str_value(str_value, var_name, fails_if_unfound_value)
+        return txt.get_bool_value_out_of_str_value(str_value, fails_if_not_boolean= fails_if_unfound_value)
     
     @staticmethod
     def get_is_mixed_questions_and_data(fails_if_unfound_value = True) -> bool:
         var_name = 'IS_MIXED_QUESTIONS_AND_DATA'
         str_value = EnvHelper.get_env_variable_value_by_name(var_name)
-        return txt.get_bool_value_out_of_str_value(str_value, var_name, fails_if_unfound_value)
+        return txt.get_bool_value_out_of_str_value(str_value, fails_if_not_boolean= fails_if_unfound_value)
     
     @staticmethod
     def get_llms_infos_from_env_config(skip_commented_lines:bool = True) -> list[LlmInfo]:
