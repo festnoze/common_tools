@@ -156,42 +156,62 @@ class RagService:
                 print(f"✓ Loaded Qdrant vectorstore: '{vector_db_full_name}'.")
                 
             elif vectorstore_type == VectorDbType.Pinecone:
-                import pinecone
-                from pinecone import ServerlessSpec
+                from pinecone import Pinecone
                 from langchain_pinecone import PineconeVectorStore
-                #
-                pinecone_instance = pinecone.Pinecone(api_key= EnvHelper.get_pinecone_api_key()) #, environment= EnvHelper.get_pinecone_environment()                
-                
-                # Create the DB (Pinecone's index) if it doesn't exist yet
-                if vector_db_full_name not in pinecone_instance.list_indexes().names():
-                    embedding_vector_size = len(self.embedding.embed_query("test"))   
-                    is_native_hybrid_search = EnvHelper.get_is_common_db_for_sparse_and_dense_vectors()  
-                    #               
-                    pinecone_instance.create_index(
-                                        name= vector_db_full_name, 
-                                        dimension=embedding_vector_size,
-                                        metric= "dotproduct" if is_native_hybrid_search else "cosine",
-                                        #pod_type="s1",
-                                        spec=ServerlessSpec(
-                                                cloud='aws',
-                                                region='us-east-1'
-                                        )
-                    )
+                # Detect whether we leverage Pinecone integrated inference (internal embeddings)
+                use_internal_emb: bool = EnvHelper.get_use_pinecone_internal_embedding()
+
+                pinecone_client = Pinecone(api_key=EnvHelper.get_pinecone_api_key())
+
+                if use_internal_emb:
+                    # --------------------------- Integrated-inference path --------------------------- #
+                    # Fetch the model name to use from environment, default to multilingual-e5-large
                     
-                    while not pinecone_instance.describe_index(vector_db_full_name).status['ready']:
-                        time.sleep(1)
+                    vector_db_full_name += '-int-emb'
+                    self.vector_db_full_name = vector_db_full_name
+                    model_name: str = 'multilingual-e5-large' # almost: EnvHelper.get_embedding_model().model_name
                     
-                pinecone_index = pinecone_instance.Index(name=vector_db_full_name)
-                print(f"✓ Loaded Pinecone vectorstore: '{vector_db_full_name}' index, containing " + str(pinecone_index.describe_index_stats()['total_vector_count']) + " vectors total.")
-                vectorstore = PineconeVectorStore(index=pinecone_index, embedding=self.embedding)
-            return vectorstore
-        
+                    if vector_db_full_name not in pinecone_client.list_indexes().names():
+                        pinecone_client.create_index_for_model(
+                            name=vector_db_full_name,
+                            cloud='aws',
+                            region='us-east-1',
+                            embed={
+                                'model': model_name,
+                                'field_map': {'text': 'text'}
+                            }
+                        )
+                        while not pinecone_client.describe_index(vector_db_full_name).status['ready']:
+                            time.sleep(1)
+
+                    self.pinecone_index = pinecone_client.Index(vector_db_full_name)
+
+                    print(f"✓ Loaded Pinecone integrated-inference index '{vector_db_full_name}. Total vectors: "
+                        f"{self.pinecone_index.describe_index_stats().get('total_vector_count', 0)}")
+                    return self.pinecone_index  # Not wrapped in LangChain when using internal embedding
+    
+                else:
+                    # --------------------------- Classic BYO-embedding path --------------------------- #
+                    if vector_db_full_name not in pinecone_client.list_indexes().names():
+                        embedding_vector_size = len(self.embedding.embed_query("test"))
+                        is_native_hybrid_search = EnvHelper.get_is_common_db_for_sparse_and_dense_vectors()
+                        pinecone_client.create_index(
+                            name=vector_db_full_name,
+                            dimension=embedding_vector_size,
+                            metric="dotproduct" if is_native_hybrid_search else "cosine",
+                            spec= {'cloud': 'aws', 'region': 'us-east-1'}
+                        )
+                        while not pinecone_client.describe_index(vector_db_full_name).status['ready']:
+                            time.sleep(1)
+                        
+                        self.pinecone_index = pinecone_client.Index(vector_db_full_name)
+                        return self.pinecone_index        
         except Exception as e:
             txt.print(f"/!\\ ERROR Loading vectorstore named: '{vector_db_full_name}' /!\\: {e}")
             return None
 
     def get_vectorstore_full_name(self, vectorstore_base_name):
-        is_native_hybrid_search = EnvHelper.get_is_common_db_for_sparse_and_dense_vectors()
+        is_native_hybrid_search = EnvHelper.get_BM25_storage_as_db_sparse_vectors() and EnvHelper.get_is_common_db_for_sparse_and_dense_vectors()
         is_summarized = EnvHelper.get_is_summarized_data()
         has_questions = EnvHelper.get_is_questions_created_from_data()
 
@@ -200,7 +220,7 @@ class RagService:
         # Make the index name specific regarding: native hybrid search (both sparse & dense vectors in the same record), w/ summaries, w/ questions
         vector_db_full_name = vectorstore_base_name + vectorstore_name_postfix
             
-            # Limit the max length of a vectorstore name  an index name is 45 characters in pinecone
+        # Limit the max length of a vectorstore name  an index name is 45 characters in pinecone
         if len(vector_db_full_name) > 45:
             txt.print(f"/!\\ Vectorstore name: '{vector_db_full_name}' is too long (Pinecone index names are 45 characters max.) and has been truncated.")
             vector_db_full_name = vector_db_full_name[:45]

@@ -112,11 +112,14 @@ class RagIngestionPipeline:
             elif vector_db_type == VectorDbType.ChromaDB:
                 raise NotImplementedError("Sparse vectors for BM25 are not implemented for Chroma.")
             elif vector_db_type == VectorDbType.Pinecone:
-                db = self._embed_documents_as_dense_and_sparse_vectors_and_store_into_pinecone_db(
-                                chunks= docs_chunks,
-                                pinecone_index= self.rag_service.vectorstore._index,
-                                embedding_model= self.rag_service.embedding,
-                                load_embeddings_from_file_if_exists= load_embeddings_from_file_if_exists)
+                if EnvHelper.get_is_common_db_for_sparse_and_dense_vectors():
+                    db = self._embed_documents_as_dense_and_sparse_vectors_and_store_into_pinecone_db(
+                                    chunks= docs_chunks,
+                                    pinecone_index= self.rag_service.vectorstore,
+                                    embedding_model= self.rag_service.embedding,
+                                    load_embeddings_from_file_if_exists= load_embeddings_from_file_if_exists)
+                else:
+                    db = self._embed_and_store_documents_chunks_as_dense_vectors_into_pinecone_db(chunks= docs_chunks)
         txt.stop_spinner_replace_text(f"Done. {len(docs_chunks)} documents' chunks embedded sucessfully!")
         return db
 
@@ -157,15 +160,41 @@ class RagIngestionPipeline:
         txt.print(f"All documents sucessfully uploaded into Qdrant database in: {total_elapsed_seconds}s.")
         return db
      
-    def _embed_and_store_documents_chunks_as_dense_vectors_into_pinecone_db(self, chunks:list[Document], batch_size:int = 2000) -> PineconeVectorStore:
-        total_elapsed_seconds = 0
-        batchs = BatchHelper.batch_split_by_count(chunks, batch_size)
-        for i, batch in enumerate(batchs):
-            txt.print_with_spinner(f"Batch n°{i+1}/{batchs}: Embedding {len(batch)} documents ")
-            self.rag_service.vectorstore.add_documents(batch)
-            total_elapsed_seconds += txt.stop_spinner_replace_text(f"Batch n°{i+1}/{batchs} done. {len(chunks)} chunks embedded sucessfully.")
-        
-        txt.print(f"All documents sucessfully uploaded into Pinecone database in: {total_elapsed_seconds}s.")
+    def _embed_and_store_documents_chunks_as_dense_vectors_into_pinecone_db(self, chunks: list[Document], batch_size: int = 2000):
+        """Upload document chunks into Pinecone.
+        Uses integrated inference when USE_PINECONE_INTERNAL_EMBEDDING is true, otherwise
+        falls back to classic add_documents on LangChain VectorStore.
+        """
+        use_internal_emb: bool = EnvHelper.get_use_pinecone_internal_embedding()
+        if use_internal_emb: batch_size = 50
+        total_elapsed_seconds: float = 0
+        batches = BatchHelper.batch_split_by_count(chunks, batch_size)
+
+        for i, batch in enumerate(batches, start=1):
+            txt.print_with_spinner(f"Batch {i}/{len(batches)}: uploading {len(batch)} documents …")
+            if use_internal_emb:
+                # Build records for Pinecone integrated inference
+                records = [
+                    {
+                        "id": doc.metadata.get("id", str(index)),
+                        "text": doc.page_content,
+                        "metadata": [str(v) for k, v in doc.metadata.items()]
+                    }
+                    for index, doc in enumerate(batch)
+                ]
+                # Upsert raw text – Pinecone will embed internally
+                self.rag_service.vectorstore.upsert_records(namespace="default", records=records)
+
+                if i % 20 == 0:
+                    time.sleep(90)
+            else:
+                # Classic BYO-embedding path
+                self.rag_service.vectorstore.add_documents(batch)
+
+            total_elapsed_seconds += txt.stop_spinner_replace_text(
+                f"Batch {i}/{len(batches)} done. {len(batch)} chunks processed." )
+
+        txt.print(f"All documents successfully uploaded into Pinecone database in: {total_elapsed_seconds}s.")
         return self.rag_service.vectorstore
     
     def _embed_documents_as_dense_and_sparse_vectors_and_store_into_pinecone_db(self, chunks: list[Document], pinecone_index, embedding_model: Embeddings, load_embeddings_from_file_if_exists = True, batch_size_in_mega_bytes: int = 1):
@@ -300,11 +329,15 @@ class RagIngestionPipeline:
                 rag.vectorstore.reset_collection()
             elif rag.vector_db_type == VectorDbType.Pinecone:
                 try:
-                    if rag.vectorstore and rag.vectorstore._index:
-                        rag.vectorstore._index.delete(delete_all=True)
-                        Pinecone.delete_index(rag.vector_db_name)
+                    # Delete all vectors from the index (if supported by the vectorstore)
+                    if hasattr(rag.vectorstore, "delete"):
+                        rag.vectorstore.delete(delete_all=True)
+                    # Delete the entire index using the Pinecone client
+                    from pinecone import Pinecone
+                    pinecone_client = Pinecone(api_key=EnvHelper.get_pinecone_api_key())
+                    pinecone_client.delete_index(rag.vector_db_name)
                 except Exception as e:
-                    txt.print(f"Deleting pinecone index '{rag.vectorstore._index._config.host}' vectors fails with: {e}")
+                    txt.print(f"Deleting pinecone index '{getattr(rag.vectorstore, 'index_name', 'unknown')}' vectors fails with: {e}")
 
     def _get_docs_min_words_count(self, documents: list[Document]) -> int:
         return min(len(re.split(r'[ .,;:!?]', doc.page_content)) for doc in documents)
