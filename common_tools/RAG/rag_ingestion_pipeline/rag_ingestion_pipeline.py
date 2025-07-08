@@ -20,6 +20,7 @@ from langchain_pinecone import PineconeVectorStore
 from qdrant_client.http.models import Distance, VectorParams
 from langchain_core.embeddings import Embeddings
 import numpy as np
+import logging
 
 # common tools imports
 from common_tools.helpers.txt_helper import txt
@@ -34,6 +35,7 @@ from common_tools.helpers.env_helper import EnvHelper
 
 class RagIngestionPipeline:
     def __init__(self, rag: RagService):
+        self.logger = logging.getLogger(__name__)
         self.rag_service: RagService = rag
 
     def chunk_documents(self, documents: list) -> list[Document]:
@@ -135,11 +137,11 @@ class RagIngestionPipeline:
             )
             total_elapsed_seconds += txt.stop_spinner_replace_text(f"Batch n°{i+1}/{batchs} done. {len(chunks)} chunks embedded sucessfully.") 
         
-        txt.print(f"All documents sucessfully uploaded into Chroma database in: {total_elapsed_seconds}s.")         
+        self.logger.info(f"All documents sucessfully uploaded into Chroma database in: {total_elapsed_seconds}s.")         
         return db
     
     def _embed_and_store_documents_chunks_as_dense_vectors_into_qdrant_db(self, chunks:list[Document], embedding:Embeddings, vector_db_path: str = '', collection_name:str = 'main', batch_size:int = 2000) -> QdrantVectorStore:
-        txt.print(f"Start embedding of {len(chunks)} chunks of documents...")
+        self.logger.info(f"Start embedding of {len(chunks)} chunks of documents...")
         vector_size = len(embedding.embed_query("test"))  # Determine the vector size
         qdrant_client = QdrantClient(path=vector_db_path)
         qdrant_client.recreate_collection(
@@ -157,7 +159,7 @@ class RagIngestionPipeline:
             db.add_documents(batch)
             total_elapsed_seconds += txt.stop_spinner_replace_text(f"Batch n°{i+1}/{batchs} done. {len(chunks)} chunks embedded sucessfully.")
         
-        txt.print(f"All documents sucessfully uploaded into Qdrant database in: {total_elapsed_seconds}s.")
+        self.logger.info(f"All documents sucessfully uploaded into Qdrant database in: {total_elapsed_seconds}s.")
         return db
      
     def _embed_and_store_documents_chunks_as_dense_vectors_into_pinecone_db(self, chunks: list[Document], batch_size: int = 2000):
@@ -194,7 +196,7 @@ class RagIngestionPipeline:
             total_elapsed_seconds += txt.stop_spinner_replace_text(
                 f"Batch {i}/{len(batches)} done. {len(batch)} chunks processed." )
 
-        txt.print(f"All documents successfully uploaded into Pinecone database in: {total_elapsed_seconds}s.")
+        self.logger.info(f"All documents successfully uploaded into Pinecone database in: {total_elapsed_seconds}s.")
         return self.rag_service.vectorstore
     
     def _embed_documents_as_dense_and_sparse_vectors_and_store_into_pinecone_db(self, chunks: list[Document], pinecone_index, embedding_model: Embeddings, load_embeddings_from_file_if_exists = True, batch_size_in_mega_bytes: int = 1):
@@ -223,7 +225,7 @@ class RagIngestionPipeline:
             pinecone_index.upsert(batch_entries)
             total_elapsed_seconds += txt.stop_spinner_replace_text(f"Batch n°{i+1}/{len(insertion_batches)} done. {len(batch_entries)} documents' chunks inserted sucessfully into database.")
 
-        txt.print(f"All documents sucessfully uploaded into Pinecone database in: {total_elapsed_seconds}s.")
+        self.logger.info(f"All documents sucessfully uploaded into Pinecone database in: {total_elapsed_seconds}s.")
         return Pinecone(index=pinecone_index, embedding=embedding_model)
 
     def load_or_compute_sparse_and_dense_vectors_embeddings_for_chunks(self, chunks:list[Document], embedding_model:Embeddings, load_embeddings_from_file_if_exists:bool = True, batch_embedding_size:int = 1000, wait_seconds_btw_batches:float = None) -> list[dict]:
@@ -253,11 +255,11 @@ class RagIngestionPipeline:
         if load_embeddings_from_file_if_exists and file.exists(dense_vectors_filepath):
             dense_vectors_array = np.load(dense_vectors_filepath)
             dense_vectors = dense_vectors_array.tolist()
-            txt.print(f"!!! Loaded {len(dense_vectors)} existing dense vectors from file: {dense_vectors_filepath} !!!")
+            self.logger.info(f"!!! Loaded {len(dense_vectors)} existing dense vectors from file: {dense_vectors_filepath} !!!")
         else:
             total_elapsed_seconds = 0
             batchs = BatchHelper.batch_split_by_count(all_chunks_contents, batch_embedding_size)
-            txt.print(f">>> Start embedding as dense vectors: {len(all_chunks_contents)} documents, splitted into {len(batchs)} batches.")
+            self.logger.info(f">>> Start embedding as dense vectors: {len(all_chunks_contents)} documents, splitted into {len(batchs)} batches.")
             for i, batch_chunks_contents in enumerate(batchs):
                 txt.print_with_spinner(f"Embedding dense vectors: Batch n°{i+1}/{len(batchs)}: {len(batch_chunks_contents)} documents")
                 batch_dense_vectors = embedding_model.embed_documents(batch_chunks_contents)
@@ -267,7 +269,7 @@ class RagIngestionPipeline:
                 total_elapsed_seconds += txt.stop_spinner_replace_text(f"Batch n°{i+1}/{len(batchs)} done. {len(batch_dense_vectors)}/{len(chunks)} dense vectors embedded sucessfully.")
             dense_vectors_array = np.array(dense_vectors)
             np.save(dense_vectors_filepath, dense_vectors_array)
-            txt.print(f"All dense + sparse vectors sucessfully embedded in: {total_elapsed_seconds:2f}s.")
+            self.logger.info(f"All dense + sparse vectors sucessfully embedded in: {total_elapsed_seconds:2f}s.")
 
         # Step 3: Prepare joined sparse and dense embedding dict (compatible with Pinecone Entries) - also inc. metadata from the original documents
         all_entries = []
@@ -337,7 +339,7 @@ class RagIngestionPipeline:
                     pinecone_client = Pinecone(api_key=EnvHelper.get_pinecone_api_key())
                     pinecone_client.delete_index(rag.vector_db_name)
                 except Exception as e:
-                    txt.print(f"Deleting pinecone index '{getattr(rag.vectorstore, 'index_name', 'unknown')}' vectors fails with: {e}")
+                    self.logger.info(f"Deleting pinecone index '{getattr(rag.vectorstore, 'index_name', 'unknown')}' vectors fails with: {e}")
 
     def _get_docs_min_words_count(self, documents: list[Document]) -> int:
         return min(len(re.split(r'[ .,;:!?]', doc.page_content)) for doc in documents)

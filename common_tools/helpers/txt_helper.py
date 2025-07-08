@@ -156,7 +156,7 @@ class txt:
                 time.sleep(0.1)
 
     @staticmethod
-    def stop_spinner():
+    def stop_spinner(has_text_being_replaced: bool = False):
         if txt.waiting_spinner_thread:
             # Signal the thread to stop
             txt.stop_event.set()
@@ -170,7 +170,7 @@ class txt:
                     break  # Exit the loop if the thread has stopped
                 total_wait_time += interval
             
-            if txt.stdout_logger:
+            if not has_text_being_replaced and txt.stdout_logger:
                 txt.stdout_logger.info("[ENDED] previous action")
 
             # Final check if the thread is still alive
@@ -184,7 +184,7 @@ class txt:
         if not txt.activate_print:
             return 0
         
-        txt.stop_spinner()
+        txt.stop_spinner(has_text_being_replaced=True)
         elapsed_str = None 
         elapsed_sec = None
         empty = 120 * ' '

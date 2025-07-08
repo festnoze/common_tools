@@ -1,5 +1,6 @@
 import os
 import time
+import logging
 from typing import List, Optional, Union
 import json
 from collections import defaultdict
@@ -56,6 +57,7 @@ class RagService:
     all_documents_json_file_path: str = None
     vectorstore: VectorStore = None
     langchain_documents: list[Document] = None
+    logger: logging.Logger = None
 
     def __init__(self, llms_or_info: Optional[Union[LlmInfo, Runnable, list]], embedding_model:EmbeddingModel= None, vector_db_base_path:str = None, vector_db_type:VectorDbType = VectorDbType('chroma'), vector_db_base_name:str = 'main', documents_json_filename:str = None):
         # Init default parameters values if not setted
@@ -65,6 +67,7 @@ class RagService:
         self.llm_1=None
         self.llm_2=None
         self.llm_3=None
+        self.logger = logging.getLogger(__name__)
         self.instanciate_embedding(embedding_model)
         self.instanciate_llms(llms_or_info, test_llms_inference=False)
         self.vector_db_name:str = vector_db_base_name
@@ -120,7 +123,7 @@ class RagService:
   
     def load_raw_langchain_documents(self, filepath:str = None) -> List[Document]:
         if not file.exists(filepath):
-            txt.print(">>> No file found to loading langchain documents for BM25 retrieval. Please generate them first or provide a valid file path.")
+            self.logger.warning(">>> No file found to loading langchain documents for BM25 retrieval. Please generate them first or provide a valid file path.")
             return None
                         
         json_as_str = file.read_file(filepath)
@@ -139,13 +142,13 @@ class RagService:
             if not is_cloud_hosted_db:
                 vector_db_path = os.path.join(vector_db_path, vector_db_full_name)
                 if not file.exists(vector_db_path): 
-                    txt.print(f'>> Vectorstore not loaded, as path: "... {vector_db_path[-110:]}" is not found')
+                    self.logger.warning(f'>> Vectorstore not loaded, as path: "... {vector_db_path[-110:]}" is not found')
             
             if vectorstore_type == VectorDbType.ChromaDB:
                 from langchain_chroma import Chroma
                 #
                 vectorstore = Chroma(persist_directory= vector_db_path, embedding_function= embedding)
-                print(f"✓ Loaded Chroma vectorstore: '{vector_db_full_name}'.")
+                self.logger.info(f"✓ Loaded Chroma vectorstore: '{vector_db_full_name}'.")
                 
             elif vectorstore_type == VectorDbType.Qdrant:
                 from qdrant_client import QdrantClient
@@ -153,7 +156,7 @@ class RagService:
                 #
                 qdrant_client = QdrantClient(path=vector_db_path)
                 vectorstore = QdrantVectorStore(client=qdrant_client, collection_name=vector_db_full_name, embedding=embedding)
-                print(f"✓ Loaded Qdrant vectorstore: '{vector_db_full_name}'.")
+                self.logger.info(f"✓ Loaded Qdrant vectorstore: '{vector_db_full_name}'.")
                 
             elif vectorstore_type == VectorDbType.Pinecone:
                 from pinecone import Pinecone
@@ -164,9 +167,6 @@ class RagService:
                 pinecone_client = Pinecone(api_key=EnvHelper.get_pinecone_api_key())
 
                 if use_internal_emb:
-                    # --------------------------- Integrated-inference path --------------------------- #
-                    # Fetch the model name to use from environment, default to multilingual-e5-large
-                    
                     vector_db_full_name += '-int-emb'
                     self.vector_db_full_name = vector_db_full_name
                     model_name: str = 'multilingual-e5-large' # almost: EnvHelper.get_embedding_model().model_name
@@ -184,14 +184,14 @@ class RagService:
                         while not pinecone_client.describe_index(vector_db_full_name).status['ready']:
                             time.sleep(1)
 
-                    self.pinecone_index = pinecone_client.Index(vector_db_full_name)
+                    pinecone_index = pinecone_client.Index(vector_db_full_name)
 
-                    print(f"✓ Loaded Pinecone integrated-inference index '{vector_db_full_name}. Total vectors: "
-                        f"{self.pinecone_index.describe_index_stats().get('total_vector_count', 0)}")
-                    return self.pinecone_index  # Not wrapped in LangChain when using internal embedding
+                    self.logger.info(f"✓ Loaded Pinecone integrated-inference index '{vector_db_full_name}. Total vectors: "
+                        f"{pinecone_index.describe_index_stats().get('total_vector_count', 0)}")
+                    return pinecone_index  # Not wrapped in LangChain when using internal embedding
     
                 else:
-                    # --------------------------- Classic BYO-embedding path --------------------------- #
+                    # Create Pinecone Index if not exists
                     if vector_db_full_name not in pinecone_client.list_indexes().names():
                         embedding_vector_size = len(self.embedding.embed_query("test"))
                         is_native_hybrid_search = EnvHelper.get_is_common_db_for_sparse_and_dense_vectors()
@@ -203,11 +203,14 @@ class RagService:
                         )
                         while not pinecone_client.describe_index(vector_db_full_name).status['ready']:
                             time.sleep(1)
-                        
-                        self.pinecone_index = pinecone_client.Index(vector_db_full_name)
-                        return self.pinecone_index        
+                    # Load the specified index   
+                    pinecone_index = pinecone_client.Index(name=vector_db_full_name)
+                    self.logger.info(f"✓ Loaded Pinecone vectorstore: '{vector_db_full_name}' index, containing " + str(pinecone_index.describe_index_stats()['total_vector_count']) + " vectors total.")
+                    vectorstore = PineconeVectorStore(index=pinecone_index, embedding=self.embedding)
+                    return vectorstore
+
         except Exception as e:
-            txt.print(f"/!\\ ERROR Loading vectorstore named: '{vector_db_full_name}' /!\\: {e}")
+            self.logger.error(f"/!\\ ERROR Loading vectorstore named: '{vector_db_full_name}' /!\\: {e}")
             return None
 
     def get_vectorstore_full_name(self, vectorstore_base_name):
@@ -222,6 +225,6 @@ class RagService:
             
         # Limit the max length of a vectorstore name  an index name is 45 characters in pinecone
         if len(vector_db_full_name) > 45:
-            txt.print(f"/!\\ Vectorstore name: '{vector_db_full_name}' is too long (Pinecone index names are 45 characters max.) and has been truncated.")
+            self.logger.warning(f"/!\\ Vectorstore name: '{vector_db_full_name}' is too long (Pinecone index names are 45 characters max.) and has been truncated.")
             vector_db_full_name = vector_db_full_name[:45]
         return vector_db_full_name
