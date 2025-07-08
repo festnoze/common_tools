@@ -2,6 +2,7 @@ import json
 import re
 import sys
 import time
+from logging import Logger
 from threading import Event, Thread
 from typing import Optional, Union
 from common_tools.helpers.python_helpers import staticproperty
@@ -10,6 +11,11 @@ class txt:
     waiting_spinner_thread = None
     start_time: float = None
     stop_event = Event()
+    stdout_logger: Logger | None = None
+
+    @staticmethod
+    def set_logger_as_stdout(logger: Logger):
+        txt.stdout_logger = logger
     
     @staticmethod
     def indent(indent_level: int, code: str) -> str:
@@ -76,7 +82,10 @@ class txt:
     @staticmethod
     def print(text: str= "", end='\n'):
         if txt.activate_print and not txt.waiting_spinner_thread:
-            print(text, end=end)
+            if txt.stdout_logger:
+                txt.stdout_logger.error(text)
+            else:
+                print(text, end=end)
 
     @staticmethod
     def print_json(data, indent=0):
@@ -120,6 +129,8 @@ class txt:
 
         txt.stop_event.clear()
         if not txt.waiting_spinner_thread:
+            if txt.stdout_logger:
+                txt.stdout_logger.info("[WAITING] " + text)
             txt.waiting_spinner_thread = Thread(target=txt.wait_spinner, args=(text,))
         txt.waiting_spinner_thread.daemon = True
         txt.waiting_spinner_thread.start()
@@ -158,6 +169,9 @@ class txt:
                 if not txt.is_thread_spinner_alive():
                     break  # Exit the loop if the thread has stopped
                 total_wait_time += interval
+            
+            if txt.stdout_logger:
+                txt.stdout_logger.info("[ENDED] previous action")
 
             # Final check if the thread is still alive
             if txt.is_thread_spinner_alive():
@@ -191,7 +205,9 @@ class txt:
 
             text = f"✓ {text}{elapsed_str}" 
             sys.stdout.write(f'\r{empty}')
-            sys.stdout.write(f'\r{text}\r\n')
+            sys.stdout.write(f'\r{text}\r\n')            
+            if txt.stdout_logger:
+                txt.stdout_logger.info("[ENDED] " + text)
             return elapsed_sec if elapsed_sec else 0
         
     @staticmethod
