@@ -48,7 +48,6 @@ setup(
         'langchain-qdrant>=0.1.0',
         'langchain-pinecone>=0.1.0',
         'qdrant-client',
-        'pinecone-plugin-inference>=1.1.0',
         'pinecone>=7.3.0',
         'pinecone-text>=0.9.0',
         'langgraph>=0.2.38',

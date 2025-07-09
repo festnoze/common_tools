@@ -18,6 +18,7 @@ from langchain_core.structured_query import (
 )
 
 # internal common tools imports
+from common_tools.helpers.txt_helper import txt
 from common_tools.helpers.execute_helper import Execute
 from common_tools.helpers.rag_filtering_metadata_helper import RagFilteringMetadataHelper
 from common_tools.helpers.env_helper import EnvHelper
@@ -52,14 +53,14 @@ class RagRetrieval:
             try:
                 retrieved_chunks = retriever.invoke(QuestionAnalysisBase.get_modified_question(analysed_query), filter= metadata_filters_in_pinecone_format)
             except Exception as e:
-                print(f"Error in Pinecone Hybrid Retrieval: {e}")
+                txt.print(f"Error in Pinecone Hybrid Retrieval: {e}")
                 retrieved_chunks = []            
         else:        
             retrieved_chunks = await retriever.ainvoke(QuestionAnalysisBase.get_modified_question(analysed_query))
             
         # In case no docs are retrieved, re-launch the hybrid retrieval, without metadata filters
         if metadata_filters and (not retrieved_chunks or not any(retrieved_chunks)):
-            print('/!\\ >> Hybid retrieval returns no documents. Retrying without any metadata filters.')
+            txt.print('/!\\ >> Hybid retrieval returns no documents. Retrying without any metadata filters.')
             return await RagRetrieval.hybrid_retrieval_langchain_async(rag, analysed_query, None, include_bm25_retrieval, include_contextual_compression, include_semantic_retrieval, give_score, max_retrived_count, bm25_ratio)
 
         post_treat_retrieved_chunks = RagRetrieval.retrieval_post_treatment(rag, retrieved_chunks)
@@ -76,7 +77,7 @@ class RagRetrieval:
                 unique_chunks.append(chunk)
 
         if len(unique_chunks) < len(retrieved_chunks):
-            print(f"/!\\ {len(retrieved_chunks) - len(unique_chunks)} retrieved chunks are duplicate, and has been removed.")
+            txt.print(f"/!\\ {len(retrieved_chunks) - len(unique_chunks)} retrieved chunks are duplicate, and has been removed.")
         retrieved_chunks = unique_chunks
 
         # Remove related ids from retrieved chunks' metadata if any
@@ -129,7 +130,7 @@ class RagRetrieval:
                         doc for doc in rag.langchain_documents 
                         if RagFilteringMetadataHelper.metadata_filtering_predicate_ChromaDb(doc, metadata_filters_chroma)
                     ]
-                    print(f">> docs count corresponding to metadata: {len(filtered_docs)}/{len(rag.langchain_documents)}")
+                    txt.print(f">> docs count corresponding to metadata: {len(filtered_docs)}/{len(rag.langchain_documents)}")
                 else:
                     filtered_docs = rag.langchain_documents
                 bm25_retriever = RagRetrieval.build_bm25_retriever(filtered_docs, k = int(max_retrived_count * bm25_ratio))

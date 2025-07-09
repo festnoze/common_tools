@@ -184,11 +184,9 @@ class RagService:
                         while not pinecone_client.describe_index(vector_db_full_name).status['ready']:
                             time.sleep(1)
 
-                    pinecone_index = pinecone_client.Index(vector_db_full_name)
+                    vectorstore = pinecone_client.Index(vector_db_full_name)
 
-                    self.logger.info(f"✓ Loaded Pinecone integrated-inference index '{vector_db_full_name}. Total vectors: "
-                        f"{pinecone_index.describe_index_stats().get('total_vector_count', 0)}")
-                    return pinecone_index  # Not wrapped in LangChain when using internal embedding
+                    self.logger.info(f"✓ Loaded Pinecone integrated-inference index '{vector_db_full_name}. Total vectors: {str(vectorstore.describe_index_stats().get('total_vector_count', 0))}")
     
                 else:
                     # Create Pinecone Index if not exists
@@ -207,10 +205,15 @@ class RagService:
                     pinecone_index = pinecone_client.Index(name=vector_db_full_name)
                     self.logger.info(f"✓ Loaded Pinecone vectorstore: '{vector_db_full_name}' index, containing " + str(pinecone_index.describe_index_stats()['total_vector_count']) + " vectors total.")
                     vectorstore = PineconeVectorStore(index=pinecone_index, embedding=self.embedding)
-                    return vectorstore
+
+            if vectorstore:
+                self.logger.info(f"✓ Loaded vectorstore: '{vector_db_full_name}'")
+            else:
+                self.logger.error(f"/!\\ Failed to load vectorstore named: '{vector_db_full_name}' /!\\")                
+            return vectorstore
 
         except Exception as e:
-            self.logger.error(f"/!\\ ERROR Loading vectorstore named: '{vector_db_full_name}' /!\\: {e}")
+            self.logger.error(f"/!\\ Exception occurred while loading vectorstore: '{vector_db_full_name}' /!\\: {e}")
             return None
 
     def get_vectorstore_full_name(self, vectorstore_base_name):

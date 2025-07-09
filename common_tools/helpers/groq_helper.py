@@ -1,4 +1,4 @@
-
+from common_tools.helpers.txt_helper import txt
 from groq import Groq
 from common_tools.models.llm_info import LlmInfo
 
@@ -15,4 +15,4 @@ class GroqHelper:
             ],
             model=llm_info.model,
         )
-        print(chat_rewritting.choices[0].message.content)
+        txt.print(chat_rewritting.choices[0].message.content)

@@ -4,7 +4,7 @@ from datetime import datetime
 
 class misc: 
     # def print_message(message: Message):
-    #     print(f"{message.role} ({message.elapsed_seconds}s.):\n{message.content}\n")
+    #     txt.print(f"{message.role} ({message.elapsed_seconds}s.):\n{message.content}\n")
     
     
     # def get_message_as_json(message: Message):

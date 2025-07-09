@@ -1,6 +1,7 @@
 import json
 import sys
 from typing import Generator, Union
+from common_tools.helpers.txt_helper import txt
 
 class BatchHelper:
     @staticmethod
@@ -51,5 +52,5 @@ class BatchHelper:
             size_in_kilo_bytes = len(serialized) / 1024
             return size_in_kilo_bytes
         except Exception as e:
-            print(f"Failed to calculate size of entry: {e}")
+            txt.print(f"Failed to calculate size of entry: {e}")
             return sys.maxsize  # Return a very large size in case of failure

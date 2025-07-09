@@ -4,6 +4,7 @@ from common_tools.models.vector_db_type import VectorDbType
 from common_tools.models.logical_operator import LogicalOperator
 from common_tools.models.metadata_description import MetadataDescription
 from common_tools.helpers.matching_helper import MatchingHelper
+from common_tools.helpers.txt_helper import txt
 #
 from langchain.schema import Document
 from langchain_community.query_constructors.chroma import ChromaTranslator
@@ -474,7 +475,7 @@ class RagFilteringMetadataHelper:
                     raise ValueError(
                         f"Attribute '{filter_obj.attribute}' is not recognized in the metadata descriptions."
                     )
-                print(f"/!\\ Filter on invalid metadata name: '{filter_obj.attribute}'. It has been removed.")
+                txt.print(f"/!\\ Filter on invalid metadata name: '{filter_obj.attribute}'. It has been removed.")
                 return None
 
             # Validate value existence in possible_values
@@ -489,18 +490,18 @@ class RagFilteringMetadataHelper:
                 )
                 # Update the filter value
                 if retrieval_score > 0.5:
-                    print(f"/!\\ Filter on metadata '{filter_obj.attribute}' with invalid value: '{filter_obj.value}' was replaced by the nearest match value: '{retrieved_value}' with score: [{retrieval_score}].")
+                    txt.print(f"/!\\ Filter on metadata '{filter_obj.attribute}' with invalid value: '{filter_obj.value}' was replaced by the nearest match value: '{retrieved_value}' with score: [{retrieval_score}].")
                     return Comparison(attribute=filter_obj.attribute, comparator=filter_obj.comparator, value=retrieved_value)
                 # Delete the filter if no close enough match is found
                 else:
-                    print(f"/!\\ Filter on metadata '{filter_obj.attribute}' with invalid value: '{filter_obj.value}'. Filter has been removed from metadata filters.")
+                    txt.print(f"/!\\ Filter on metadata '{filter_obj.attribute}' with invalid value: '{filter_obj.value}'. Filter has been removed from metadata filters.")
             
             if does_throw_error_upon_failure:
                 raise ValueError(f"Value: '{filter_obj.value}' for metadata filter: '{filter_obj.attribute}' is not valid. Allowed values are: {', '.join(possible_values)}"
                 )
             else:
                 #Remove the filter if the value is not found in the possible values
-                print( f"/!\\ Filter on metadata '{filter_obj.attribute}' with invalid value: '{filter_obj.value}'. Filter has been removed from metadata filters.")
+                txt.print( f"/!\\ Filter on metadata '{filter_obj.attribute}' with invalid value: '{filter_obj.value}'. Filter has been removed from metadata filters.")
                 return None                
 
         elif isinstance(filter_obj, Operation):

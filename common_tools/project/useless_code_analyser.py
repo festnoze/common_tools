@@ -261,11 +261,3 @@ class NameUsageCollector(ast.NodeVisitor):
         # Collect the attribute name
         self.used_names.add(node.attr)
         self.generic_visit(node)
-
-
-# print("Analyse unused files/methods and imports of the current project:")
-# unused_files_methods_imports = UselessCodeAnalyser.detect_unused_files(
-#     ".", 
-#     ['./common_tools/helpers', './common_tools/langchains', './common_tools/rag/rag_inference_pipeline', './common_tools/project'],
-#     ['__init__.py', 'setup.py'])
-# print(unused_files_methods_imports)

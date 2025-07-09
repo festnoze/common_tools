@@ -12,10 +12,6 @@ from common_tools.models.langchain_adapter_type import LangChainAdapterType
 
 class EnvHelper:
     is_env_loaded = False
-
-    @staticmethod
-    def _get_custom_env_files():
-        return EnvHelper.get_env_variable_value_by_name('CUSTOM_ENV_FILES', load_env=False, fails_if_missing=False)
     
     @staticmethod
     def get_openai_api_key():
@@ -174,20 +170,28 @@ class EnvHelper:
             load_dotenv()
             EnvHelper._load_custom_env_files()
             EnvHelper.is_env_loaded = True
+    
+    @staticmethod
+    def _get_custom_env_files():
+        return EnvHelper.get_env_variable_value_by_name('CUSTOM_ENV_FILES', load_env=False, fails_if_missing=False)
+
+    @staticmethod
+    def _get_custom_env_files_names() -> list[str]:
+        custom_env_files = EnvHelper._get_custom_env_files()
+        if not custom_env_files: return []
+        return [filename.strip() for filename in custom_env_files.split(",")]
 
     @staticmethod
     def _load_custom_env_files():
-        custom_env_files = EnvHelper._get_custom_env_files()
-        
-        # In case no custom additionnal env. files are defined into a 'CUSTOM_ENV_FILES' key of the '.env' file 
-        if not custom_env_files:
-            return 
-        
-        custom_env_filenames = [filename.strip() for filename in custom_env_files.split(",")]
+        custom_env_filenames = EnvHelper._get_custom_env_files_names()
         for custom_env_filename in custom_env_filenames:
             if not os.path.exists(custom_env_filename):
                 raise FileNotFoundError(f"/!\\ Environment file: '{custom_env_filename}' was not found at the project root.")
             load_dotenv(custom_env_filename)
+
+    @staticmethod
+    def _get_all_env_variables() -> dict[str, str]:
+        return os.environ.copy()
     
     @staticmethod
     def get_env_variable_value_by_name(variable_name: str, load_env=True, fails_if_missing=True) -> str:

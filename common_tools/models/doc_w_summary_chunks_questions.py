@@ -112,7 +112,7 @@ class DocWithSummaryChunksAndQuestions:
         columns = ['Chunk Text'] + [f'Question n°{i+1}' for i in range(max_questions)]
         df = pd.DataFrame(data, columns=columns)
         df = df.fillna('')
-        print(df.to_string(index=False))
+        txt.print(df.to_string(index=False))
 
     def display_to_terminal(self, display_questions: bool = True):
         i = 1

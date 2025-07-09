@@ -8,8 +8,7 @@ from typing import Any, Union
 import yaml
 #
 from common_tools.models.file_already_exists_policy import FileAlreadyExistsPolicy
-
-from .txt_helper import txt
+from common_tools.helpers.txt_helper import txt
 
 class file:
 
@@ -33,10 +32,10 @@ class file:
 
                 return content
         except FileNotFoundError:
-            print(f"file: {filename} cannot be found.")
+            txt.print(f"file: {filename} cannot be found.")
             return None
         except Exception as e:
-            print(f"Error happends while reading file: {filename}: {e}")
+            txt.print(f"Error happends while reading file: {filename}: {e}")
             return None
             
     @staticmethod
@@ -60,11 +59,11 @@ class file:
             if file_exists_policy == FileAlreadyExistsPolicy.Override:
                 pass  # continue to overwrite the file
             elif file_exists_policy == FileAlreadyExistsPolicy.Skip:
-                print(f"Info from '{file.write_file.__name__}': File '{filepath}' already exists. Skipped writing file, as per policy.")
+                txt.print(f"Info from '{file.write_file.__name__}': File '{filepath}' already exists. Skipped writing file, as per policy.")
                 return  # skip writing the file
             elif file_exists_policy == FileAlreadyExistsPolicy.AutoRename:
                 new_filepath = file._get_unique_filename(filepath)
-                print(f"Info from '{file.write_file.__name__}': File '{filepath}' already exists. Renaming to: '{new_filepath}', as per policy.")
+                txt.print(f"Info from '{file.write_file.__name__}': File '{filepath}' already exists. Renaming to: '{new_filepath}', as per policy.")
                 filepath = new_filepath
             elif file_exists_policy == FileAlreadyExistsPolicy.Fail:
                 raise FileExistsError(f"Error in '{file.write_file.__name__}': File '{filepath}' already exists. Exception thrown, as per policy.")
@@ -148,7 +147,7 @@ class file:
                     elif os.path.isdir(file_path):
                         shutil.rmtree(file_path)
                 except Exception as e:
-                    print(f"File deletion failed: '{file_path}'. With error: {e}")
+                    txt.print(f"File deletion failed: '{file_path}'. With error: {e}")
     
     @staticmethod
     def get_all_folder_and_subfolders_files_path(path:str, extension:str=None):

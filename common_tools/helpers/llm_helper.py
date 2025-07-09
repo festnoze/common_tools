@@ -170,7 +170,7 @@ class Llm:
         return Llm.get_content(res)
     
     @staticmethod
-    async def invoke_as_async_stream(action_name:str, llm_or_chain: Runnable, input, display_console: bool = False, content_chunks:list[str] = None, does_stream_across_http: bool = False):
+    async def invoke_as_async_stream(action_name:str, llm_or_chain: Runnable, input, content_chunks:list[str] = None, does_stream_across_http: bool = False):
         if not content_chunks: content_chunks = []
         has_content_prop:bool = None
         
@@ -189,8 +189,6 @@ class Llm:
             
             content = chunk if not has_content_prop else chunk.content
             
-            if display_console:
-                print(content, end= "", flush= True)
             if content is not None and content != '':
                 content_chunks.append(content)
                 content = content.replace('\r\n', '\n')
@@ -273,14 +271,14 @@ class Llm:
     def display_tokens_consumption(cb: OpenAICallbackHandler):
         max_len = len(Llm.format_number(cb.total_tokens)) + 2
         cost_eur = cb.total_cost / Llm.get_eur_usd_rate()
-        print("Token consumption:")
-        print(f"Input prompt: {Llm.format_number(cb.prompt_tokens)}")
-        print(f"rewritting: + {Llm.format_number(cb.rewritting_tokens)}")    
-        print(f"            " + "-" * max_len)
-        print(f"Total tokens: {Llm.format_number(cb.total_tokens)}")
-        print(f"Total cost:   {cost_eur:.3f}€ ({cb.total_cost:.3f}$)")
+        txt.print("Token consumption:")
+        txt.print(f"Input prompt: {Llm.format_number(cb.prompt_tokens)}")
+        txt.print(f"rewritting: + {Llm.format_number(cb.rewritting_tokens)}")    
+        txt.print(f"            " + "-" * max_len)
+        txt.print(f"Total tokens: {Llm.format_number(cb.total_tokens)}")
+        txt.print(f"Total cost:   {cost_eur:.3f}€ ({cb.total_cost:.3f}$)")
         if cb.total_tokens != 0:
-            print(f"(Cost by 1M tokens: {(1000000 * cb.total_cost / cb.total_tokens):.3f}$)\n") 
+            txt.print(f"(Cost by 1M tokens: {(1000000 * cb.total_cost / cb.total_tokens):.3f}$)\n") 
     
     def format_number(number: int) -> str:
         return "{:,}".format(number).replace(",", " ")

@@ -11,6 +11,7 @@ from langchain_core.structured_query import (
 #
 from common_tools.helpers.execute_helper import Execute
 from common_tools.helpers.file_helper import file
+from common_tools.helpers.txt_helper import txt
 from common_tools.helpers.llm_helper import Llm
 from common_tools.helpers.ressource_helper import Ressource
 from common_tools.helpers.rag_filtering_metadata_helper import RagFilteringMetadataHelper
@@ -62,14 +63,14 @@ class RAGPreTreatment:
                 'Standalone and rewritten query', [rag.llm_2, rag.llm_3], output_parser, 10, *[prompt_for_output_parser])
         
         question_rewritting = QuestionRewritting(**response[0])
-        print(f'> Standalone query: "{question_rewritting.question_with_context}" and rewritten query: "{question_rewritting.modified_question}"')
+        txt.print(f'> Standalone query: "{question_rewritting.question_with_context}" and rewritten query: "{question_rewritting.modified_question}"')
 
         # interupt pipeline if no RAG is needed
         if question_rewritting.question_type == 'salutations':
-            print(f'> Salutations detected, ending pipeline')
+            txt.print(f'> Salutations detected, ending pipeline')
             raise GreetingsEndsPipelineException()
         elif question_rewritting.question_type == 'fin_echange':
-            print(f"> Fin d'échange detected, ending pipeline")
+            txt.print(f"> Fin d'échange detected, ending pipeline")
             raise EndMessageEndsPipelineException()
         return question_rewritting
 
@@ -96,14 +97,14 @@ class RAGPreTreatment:
         )
         response = response_list[0]
         question_rewritting = QuestionRewritting(**response)
-        print(f'> Standalone query: "{question_rewritting.question_with_context}"')
+        txt.print(f'> Standalone query: "{question_rewritting.question_with_context}"')
 
         # interupt pipeline if no RAG is needed
         if question_rewritting.question_type == 'salutations':
-            print(f'> Salutations detected, ending pipeline')
+            txt.print(f'> Salutations detected, ending pipeline')
             raise GreetingsEndsPipelineException()
         elif question_rewritting.question_type == 'fin_echange':
-            print(f"> Fin d'échange detected, ending pipeline")
+            txt.print(f"> Fin d'échange detected, ending pipeline")
             raise EndMessageEndsPipelineException()
         return question_rewritting
 
@@ -117,7 +118,7 @@ class RAGPreTreatment:
         
         content = Llm.extract_json_from_llm_response(Llm.get_content(response))
         analysed_query.modified_question = content['modified_question']
-        print(f'> Rewritten query: "{analysed_query.modified_question}"')
+        txt.print(f'> Rewritten query: "{analysed_query.modified_question}"')
         return analysed_query
         
     
@@ -192,7 +193,7 @@ class RAGPreTreatment:
         try:
             response_with_filters = await Llm.invoke_chain_with_input_async('Find metadata filters from query', query_constructor, query)
         except Exception as e:
-            print(f'/!\\ Error on "{RAGPreTreatment.analyse_query_for_metadata_async.__name__}": {e}')
+            txt.print(f'/!\\ Error on "{RAGPreTreatment.analyse_query_for_metadata_async.__name__}": {e}')
         
         metadata_filters = response_with_filters.filter
         return response_with_filters.query, metadata_filters
@@ -212,7 +213,7 @@ class RAGPreTreatment:
             # Domain specific extra validity check of metadata filters (if 'domain_specific_metadata_filters_validation_and_correction_async_method' has be defined by caller beforehand)
             metadata_filters_to_validate = await RAGPreTreatment._apply_if_specified_domain_specific_metadata_filters_validation_and_correction_async(metadata_filters_to_validate)
             metadata_filters_to_validate_str = str(RagFilteringMetadataHelper.translate_langchain_metadata_filters_into_chroma_db_format(metadata_filters_to_validate))
-            print(f"> Metadata filters before validation: '{metadata_filters_to_validate_str}'")
+            txt.print(f"> Metadata filters before validation: '{metadata_filters_to_validate_str}'")
 
             # Generic validity check of metadata filters keys or values, and remove filters with invalid ones
             validated_metadata_filters = await RagFilteringMetadataHelper.validate_langchain_metadata_filters_against_metadata_descriptions_async(
@@ -222,13 +223,13 @@ class RAGPreTreatment:
             
             validated_metadata_filters_str = str(RagFilteringMetadataHelper.translate_langchain_metadata_filters_into_chroma_db_format(validated_metadata_filters))
             if validated_metadata_filters_str != metadata_filters_to_validate_str:
-                print(f"> Corrected metadata filters: '{str(validated_metadata_filters)}'")
+                txt.print(f"> Corrected metadata filters: '{str(validated_metadata_filters)}'")
             else:
-                print(f">>> Metadata filters validated without errors. <<<")
+                txt.print(f">>> Metadata filters validated without errors. <<<")
                 
             return validated_metadata_filters
         except Exception as e:
-            print(f'/!\\ Error on metadata validation in: "{RAGPreTreatment.metadata_filters_validation_and_correction_async.__name__}": {e}')
+            txt.print(f'/!\\ Error on metadata validation in: "{RAGPreTreatment.metadata_filters_validation_and_correction_async.__name__}": {e}')
             return None
 
     @staticmethod

@@ -7,6 +7,7 @@ import concurrent.futures
 import asyncio
 # internal import
 from common_tools.helpers.misc import misc
+from common_tools.helpers.txt_helper import txt
 
 class ai:
     timeout_tag = "[LLM_REQUEST_TIMEOUT]"
@@ -67,7 +68,7 @@ class ai:
                 run = openai.beta.threads.runs.retrieve(run_id= run.id, thread_id= specific_thread_id if specific_thread_id else assistant_set.thread.id)
                 if run.completed_at:
                     # elapsed = ai.get_run_duration(run)
-                    # print(f"run in: {elapsed}")
+                    # txt.print(f"run in: {elapsed}")
                     assistant_set.run = run
                     return ai.RunResult.SUCCESS
                 
@@ -124,7 +125,7 @@ class ai:
             return answers_data[0].content[0].text.value
         
         except Exception as e:
-            print(f"\nImpossible de trouver de message pour le thread: {thread_id}: {e}")
+            txt.print(f"\nImpossible de trouver de message pour le thread: {thread_id}: {e}")
     
     def get_all_messages(assistant_set):
         messages = openai.beta.threads.messages.list(thread_id= assistant_set.thread.id)
@@ -161,4 +162,4 @@ class ai:
     def print_openai_models():
         models = openai.models.list()
         for model in models:
-            print(model.id)
+            txt.print(model.id)

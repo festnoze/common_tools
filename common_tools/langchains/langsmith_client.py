@@ -3,8 +3,7 @@ import os
 import datetime
 import uuid
 from langsmith import Client
-import requests
-
+#
 from common_tools.helpers.txt_helper import txt
 
 class Langsmith:
@@ -51,5 +50,5 @@ class Langsmith:
         for project in projects:
             if project.name.startswith(self.langsmith_project_name): # and project.name != self.langsmith_project_name:
                 self.client.delete_project(project_name=project.name)
-                print(f"Langsmith project '{project.name}' deleted")
-        print("Langsmith All related projects deleted.")
+                txt.print(f"Langsmith project '{project.name}' deleted")
+        txt.print("Langsmith All related projects deleted.")

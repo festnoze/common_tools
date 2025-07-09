@@ -40,9 +40,3 @@ class ImportListing:
     def discover_imports(project_path):
         imports = ImportListing.find_imports(project_path)
         return ImportListing.get_used_packages(imports)
-
-# print("Packages used in this project:")
-# used_packages = ImportListing.discover_imports(".")
-# for pkg in sorted(used_packages):
-#     print(pkg)
-# pass

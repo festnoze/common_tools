@@ -200,7 +200,7 @@ class PineconeHybridSearchRetriever(BaseRetriever):
         #     dense_vec = np.array(dense_vec)
         #     if len(dense_vec.shape) == 1:  # reshape to 2D to match the sparse shape
         #         dense_vec = dense_vec.reshape(1, -1)
-        #         print(f"Dense vector shape: {dense_vec.shape}")
+        #         txt.print(f"Dense vector shape: {dense_vec.shape}")
 
         # scale alpha with hybrid_scale
         dense_vec, sparse_vec = hybrid_convex_scale(dense_vec, sparse_vec, self.alpha)

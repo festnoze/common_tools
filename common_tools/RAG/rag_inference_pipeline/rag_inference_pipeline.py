@@ -19,6 +19,7 @@ from common_tools.workflows.workflow_executor import WorkflowExecutor
 from common_tools.models.conversation import Conversation
 from common_tools.workflows.end_workflow_exception import EndWorkflowException
 from common_tools.helpers.env_helper import EnvHelper
+from common_tools.helpers.txt_helper import txt
 
 class RagInferencePipeline:
     def __init__(self, rag:RagService, override_workflow_available_classes:dict = None, default_filters:dict = {}, metadata_descriptions = None, tools: list = None):
@@ -99,7 +100,7 @@ class RagInferencePipeline:
                 yield 'Error: ' + str(ex)
                 if rag_augmented_answer_generation_retry_count <= 0:
                     break
-                print(f"Exception occurred in rag_augmented_answer_generation_streaming_async, retrying... ({rag_augmented_answer_generation_retry_count} attempts left)")
+                txt.print(f"Exception occurred in rag_augmented_answer_generation_streaming_async, retrying... ({rag_augmented_answer_generation_retry_count} attempts left)")
 
             
     async def run_pipeline_dynamic_but_augmented_generation_async(self, query: Union[str, Conversation], include_bm25_retrieval: bool = False, give_score=True, pipeline_config_file_path: str = 'rag_pipeline_default_config_wo_AG_for_streaming.yaml', format_retrieved_docs_function = None, retry_count_upon_exception: int = 0):

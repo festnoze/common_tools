@@ -25,16 +25,16 @@ class MethodDecorator:
 
                 param_value_message = f"'{display_param_value}'= '{param_value}'" if param_value is not None else ""
 
-                print(f"> {function_name}({param_value_message}) [Ongoing execution]")
+                txt.print(f"> {function_name}({param_value_message}) [Ongoing execution]")
                 return function_name, param_value_message, time.time()
 
             def after_invoke(function_name, param_value_message, start_time):
                 elapsed_time = time.time() - start_time
-                print(f"> {function_name}({param_value_message}) [Execution done in {elapsed_time:.2f}s.]")
+                txt.print(f"> {function_name}({param_value_message}) [Execution done in {elapsed_time:.2f}s.]")
 
             def fails_upon_invoke(function_name, param_value_message, start_time):
                 elapsed_time = time.time() - start_time
-                print(f"{function_name}({param_value_message}) [Execution fails after {elapsed_time:.2f}s.]")
+                txt.print(f"{function_name}({param_value_message}) [Execution fails after {elapsed_time:.2f}s.]")
 
             @functools.wraps(func)
             def sync_wrapper(*args, **kwargs):

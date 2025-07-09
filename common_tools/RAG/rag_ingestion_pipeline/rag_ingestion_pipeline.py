@@ -233,7 +233,7 @@ class RagIngestionPipeline:
         joined_embeddings_filepath = os.path.join(self.rag_service.vector_db_base_path, self.rag_service.vector_db_full_name + "_joined_sparse_and_dense_embeddings_for_pinecone.json")
         if load_embeddings_from_file_if_exists and file.exists(joined_embeddings_filepath):
             all_entries = file.get_as_json(joined_embeddings_filepath)
-            print(f"!!! Loaded {len(all_entries)} existing entries (sparse + dense vectors) from file: {joined_embeddings_filepath} !!!")
+            self.logger.info(f"!!! Loaded {len(all_entries)} existing entries (sparse + dense vectors) from file: {joined_embeddings_filepath} !!!")
             self.fix_empty_sparse_vectors(all_entries)
             return all_entries
         
@@ -280,11 +280,11 @@ class RagIngestionPipeline:
             entry_id = doc.metadata.get("id", str(uuid.uuid4()))
             # Make sure that the entry id is unique
             while entry_id in all_entries_ids:
-                print(f"!!! /!\\ Duplicate entry 'id' detected: '{entry_id}'. New id generated !!!")
+                self.logger.warning(f"!!! /!\\ Duplicate entry 'id' detected: '{entry_id}'. New id generated !!!")
                 entry_id = str(uuid.uuid4())
 
             if doc.metadata["id"] != entry_id:  
-                print(f"!!! /!\\ Entry 'id' changed from '{doc.metadata['id']}' to '{entry_id}' !!!")
+                self.logger.warning(f"!!! /!\\ Entry 'id' changed from '{doc.metadata['id']}' to '{entry_id}' !!!")
                 doc.metadata["id"] = entry_id
             all_entries_ids.append(entry_id)
                 
@@ -307,10 +307,10 @@ class RagIngestionPipeline:
         for entry in all_entries:
             if len(entry["sparse_values"]["indices"]) == 0:
                 entry["sparse_values"]["indices"] = all_entries[0]["sparse_values"]["indices"]
-                print(f"!!! /!\\ Sparse vector 'indices' are empty. Using the first entry's indices: {entry['sparse_values']['indices']} !!!")
+                self.logger.warning(f"!!! /!\\ Sparse vector 'indices' are empty. Using the first entry's indices: {entry['sparse_values']['indices']} !!!")
             if len(entry["sparse_values"]["values"]) == 0:
                 entry["sparse_values"]["values"] = all_entries[0]["sparse_values"]["values"]
-                print(f"!!! /!\\ Sparse vector 'values' are empty. Using the first entry's values: {entry['sparse_values']['values']} !!!")
+                self.logger.warning(f"!!! /!\\ Sparse vector 'values' are empty. Using the first entry's values: {entry['sparse_values']['values']} !!!")
 
     def _build_bm25_store_as_raw_json_file(self, documents:list):
         documents_dict = []

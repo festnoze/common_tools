@@ -1,8 +1,7 @@
 import asyncio
 from typing import Union, Optional, get_origin, get_args
 import inspect
-import types
-#
+import logging
 from common_tools.helpers.file_helper import file
 from common_tools.helpers.method_decorator_helper import MethodDecorator
 from common_tools.helpers.reflexion_helper import Reflexion
@@ -10,6 +9,7 @@ from common_tools.workflows.end_workflow_exception import EndWorkflowException
 
 class WorkflowExecutor:
     def __init__(self, config_or_config_file_path=None, available_classes:dict={}):
+        self.logger = logging.getLogger(__name__)
         if isinstance(config_or_config_file_path, dict):
             self.config = config_or_config_file_path
         elif isinstance(config_or_config_file_path, str) and config_or_config_file_path:
@@ -117,7 +117,7 @@ class WorkflowExecutor:
             raise ewe
         except Exception as e:
             if retry_count_upon_exception > 0:
-                print(f"Exception occurred in {class_and_function_name}, retrying... ({retry_count_upon_exception} attempts left)")
+                self.logger.warning(f"Exception occurred in {class_and_function_name}, retrying... ({retry_count_upon_exception} attempts left)")
                 yield from self.execute_function(class_and_function_name, previous_results, kwargs_values, retry_count_upon_exception - 1)
             else:
                 self._raise_fail_func_execution(class_and_function_name, previous_results, kwargs_values, e)
@@ -127,10 +127,6 @@ class WorkflowExecutor:
         func = Reflexion.get_static_method(class_and_function_name, self.available_classes)
         func_kwargs = self._prepare_arguments_for_function(func, previous_results, kwargs_values)
         try:
-            # if inspect.isasyncgenfunction(func):
-            #     async for item in func(**func_kwargs):
-            #         yield item
-            # else:
             if inspect.iscoroutinefunction(func):
                 result = await func(**func_kwargs)
             else:
@@ -141,7 +137,7 @@ class WorkflowExecutor:
             raise epe   
         except Exception as e:
             if retry_count_upon_exception > 0:
-                print(f"Exception occurred in {class_and_function_name}, retrying... ({retry_count_upon_exception} attempts left)")
+                self.logger.warning(f"Exception occurred in {class_and_function_name}, retrying... ({retry_count_upon_exception} attempts left)")
                 return await self.execute_function_async(class_and_function_name, previous_results, kwargs_values, retry_count_upon_exception - 1)
             else:
                 self._raise_fail_func_execution(class_and_function_name, previous_results, kwargs_values, e)

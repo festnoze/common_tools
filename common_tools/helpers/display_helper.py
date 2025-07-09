@@ -1,9 +1,11 @@
+from common_tools.helpers.txt_helper import txt
+
 class display:
     def display_assistant_ids(title, assistant_set):
-        print(f"{title}:")
-        print(f"• assistant id: '{assistant_set.assistant.id}'")
-        print(f"• thread id:    '{assistant_set.thread.id}'")
-        print(f"----------------------------------------------")
+        txt.print(f"{title}:")
+        txt.print(f"• assistant id: '{assistant_set.assistant.id}'")
+        txt.print(f"• thread id:    '{assistant_set.thread.id}'")
+        txt.print(f"----------------------------------------------")
 
     def get_llm_infos(llm):
         model_name = getattr(llm, 'model_name', None)
