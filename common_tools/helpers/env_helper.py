@@ -184,10 +184,14 @@ class EnvHelper:
     @staticmethod
     def _load_custom_env_files():
         custom_env_filenames = EnvHelper._get_custom_env_files_names()
+        errors = []
         for custom_env_filename in custom_env_filenames:
             if not os.path.exists(custom_env_filename):
-                raise FileNotFoundError(f"/!\\ Environment file: '{custom_env_filename}' was not found at the project root.")
-            load_dotenv(custom_env_filename)
+                errors.append(custom_env_filename)
+            else:
+                load_dotenv(custom_env_filename)
+        if any(errors):
+            raise FileNotFoundError(f"Environment file(s): '{', '.join(errors)}' were not found at the project root.")
 
     @staticmethod
     def _get_all_env_variables() -> dict[str, str]:
