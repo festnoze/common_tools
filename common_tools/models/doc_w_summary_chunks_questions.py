@@ -1,8 +1,11 @@
+import logging
 from typing import Union
 from pydantic import BaseModel, Field
 import pandas as pd
 from langchain.schema import Document
+#
 from common_tools.helpers.txt_helper import txt
+from common_tools.models.document_with_text import DocumentWithText
 
 class Question:
     def __init__(self, text: str = ''):
@@ -33,6 +36,7 @@ class DocWithSummaryChunksAndQuestions:
                     doc_chunks_with_questions if doc_chunks_with_questions else kwargs.get('doc_chunks')
         )
         self.metadata: dict = metadata if metadata else kwargs.get('metadata', {})
+        self.logger = logging.getLogger(__name__)
 
     def __repr__(self) -> str:
         summary_words_count = len(self.doc_summary.replace('\n', ' ').split(' '))
@@ -60,11 +64,11 @@ class DocWithSummaryChunksAndQuestions:
     questions_title = '### Questions ###\n'
     answers_title = '### Réponses ###\n'
     
-    def to_langchain_documents_chunked_summary_and_questions(self, include_data=True, include_questions=True) -> Document:
+    def to_langchain_documents_chunked_summary_and_questions(self, mixed_questions_and_summary: bool = False) -> list[Document]:
         docs = []
         for chunk in self.doc_chunks:
             chunk_content = ''
-            if include_questions and include_data:
+            if mixed_questions_and_summary:
                 chunk_content += DocWithSummaryChunksAndQuestions.questions_title
                 for question in chunk.questions:
                     chunk_content += question.text + '\n'
@@ -72,11 +76,9 @@ class DocWithSummaryChunksAndQuestions:
                 chunk_content += chunk.text + '\n'
                 docs.append(Document(page_content=chunk_content, metadata=self.metadata))
             else:
-                if include_questions: 
-                    for question in chunk.questions:
-                        docs.append(Document(page_content=question.text, metadata=self.metadata))
-                if include_data:
-                    docs.append(Document(page_content=chunk.text, metadata=self.metadata))
+                for question in chunk.questions:
+                    question_chunk = DocumentWithText(content_to_return=chunk.text, page_content=question.text, metadata=self.metadata)
+                    docs.append(question_chunk)
         return docs
     
     def get_typed_chunks_with_their_questions(self, chunks_and_questions_dict: Union[dict, list[DocChunk]]) -> list[DocChunk]:
@@ -112,7 +114,7 @@ class DocWithSummaryChunksAndQuestions:
         columns = ['Chunk Text'] + [f'Question n°{i+1}' for i in range(max_questions)]
         df = pd.DataFrame(data, columns=columns)
         df = df.fillna('')
-        txt.print(df.to_string(index=False))
+        self.logger.info(df.to_string(index=False))
 
     def display_to_terminal(self, display_questions: bool = True):
         i = 1
@@ -120,21 +122,21 @@ class DocWithSummaryChunksAndQuestions:
         max_questions = 0
         total_chunks = len(self.doc_chunks)
         for chunk in self.doc_chunks:
-            txt.print(f'\n>>> Chunk n°{i}:\n' + chunk.text)
+            self.logger.info(f'\n>>> Chunk n°{i}:\n' + chunk.text)
             if len(chunk.questions) > max_questions: 
                 max_questions = len(chunk.questions)
             i += 1
             j = 1
             for question in chunk.questions:
                 if display_questions:
-                    txt.print(f'>> Question n°{str(j)}: {question.text}')
+                    self.logger.info(f'>> Question n°{str(j)}: {question.text}')
                 total_questions += 1
                 j += 1
-        txt.print(f'Total: {total_chunks} chunks')
-        txt.print(f'Total: {total_questions} questions')
-        txt.print(f'Max.: {max_questions} questions')
-        txt.print(f'Average: {total_questions/total_chunks:.1f} questions by chunk')
-        txt.print(f'All chunks size: {sum([len(chunk.text.split(' ')) for chunk in self.doc_chunks])} words.')
+        self.logger.info(f'Total: {total_chunks} chunks')
+        self.logger.info(f'Total: {total_questions} questions')
+        self.logger.info(f'Max.: {max_questions} questions')
+        self.logger.info(f'Average: {total_questions/total_chunks:.1f} questions by chunk')
+        self.logger.info(f'All chunks size: {sum([len(chunk.text.split(' ')) for chunk in self.doc_chunks])} words.')
 
 
 ###################

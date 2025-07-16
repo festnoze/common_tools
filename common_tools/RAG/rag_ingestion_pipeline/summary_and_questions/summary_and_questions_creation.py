@@ -1,3 +1,5 @@
+import logging
+import time
 from langchain.schema import Document
 from common_tools.helpers.txt_helper import txt
 from common_tools.helpers.file_helper import file
@@ -5,9 +7,10 @@ from common_tools.helpers.llm_helper import Llm
 from common_tools.models.doc_w_summary_chunks_questions import Question, DocChunk, DocWithSummaryChunksAndQuestions, DocWithSummaryChunksAndQuestionsPydantic, DocQuestionsByChunkPydantic
 from common_tools.helpers.ressource_helper import Ressource
 #
-from common_tools.RAG.rag_service import RagService, RagServiceFactory
+from common_tools.RAG.rag_service import RagService
 
-class SummaryAndQuestionsChunksCreation:
+class SummaryAndQuestionsChunksCreation:    
+    logger = logging.getLogger(__name__)
     
     async def generate_summaries_and_chunks_by_questions_objects_from_docs_async(
             trainings_docs: list[Document], llm_and_fallback: list, docs_with_summary_chunks_and_questions_file_path: str
@@ -162,7 +165,7 @@ class SummaryAndQuestionsChunksCreation:
                 try:
                     chunk_questions = Llm.extract_json_from_llm_response(doc_chunks_questions_response[idx])
                 except Exception as e:
-                    txt.print(f"<<<<< Error on doc {i} chunk {j} with error: {e}>>>>>>")
+                    SummaryAndQuestionsChunksCreation.logger.error(f"<<<<< Error on doc {i} chunk {j} with error: {e}>>>>>>")
                     chunk_questions = []
                 chunk_text = chunks_by_docs[i][j]
                 q_objects = [Question(q['question']) for q in chunk_questions]
@@ -181,7 +184,7 @@ class SummaryAndQuestionsChunksCreation:
 
         trainings_docs = SummaryAndQuestionsChunksCreation.load_trainings_scraped_details_as_json(files_path)
 
-        txt.print("-"*70)
+        SummaryAndQuestionsChunksCreation.logger.info("-"*70)
         start = time.time()
         summary_1_step = await SummaryAndQuestionsChunksCreation.create_summary_and_questions_from_docs_single_step_async([rag_service.llm_1, rag_service.llm_2], trainings_docs)
         summary_1_step_elapsed_str = txt.get_elapsed_str(time.time() - start)
@@ -194,15 +197,15 @@ class SummaryAndQuestionsChunksCreation:
         summary_3_steps = await SummaryAndQuestionsChunksCreation.create_summary_and_questions_from_docs_in_three_steps_async([rag_service.llm_1, rag_service.llm_2], trainings_docs)
         summary_3_steps_elapsed_str = txt.get_elapsed_str(time.time() - start)
         
-        txt.print("-"*70)
+        SummaryAndQuestionsChunksCreation.logger.info("-"*70)
         summary_1_step.display_to_terminal()
-        txt.print(f"Single step summary generation took {summary_1_step_elapsed_str}")
-        txt.print("-"*70)
+        SummaryAndQuestionsChunksCreation.logger.info(f"Single step summary generation took {summary_1_step_elapsed_str}")
+        SummaryAndQuestionsChunksCreation.logger.info("-"*70)
 
         summary_2_steps.display_to_terminal()
-        txt.print(f"Two steps summary generation took {summary_2_steps_elapsed_str}")
-        txt.print("-"*70)
+        SummaryAndQuestionsChunksCreation.logger.info(f"Two steps summary generation took {summary_2_steps_elapsed_str}")
+        SummaryAndQuestionsChunksCreation.logger.info("-"*70)
 
         summary_3_steps[0].display_to_terminal()
-        txt.print(f"Three steps summary generation took {summary_3_steps_elapsed_str}")
-        txt.print("-"*70)
+        SummaryAndQuestionsChunksCreation.logger.info(f"Three steps summary generation took {summary_3_steps_elapsed_str}")
+        SummaryAndQuestionsChunksCreation.logger.info("-"*70)

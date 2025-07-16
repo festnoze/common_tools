@@ -1,5 +1,6 @@
-import json
 import os
+import logging
+from typing import Union
 from langchain.schema import Document
 from common_tools.helpers.txt_helper import txt
 from common_tools.helpers.file_helper import file
@@ -8,6 +9,7 @@ from common_tools.models.doc_w_summary_chunks_questions import DocWithSummaryChu
 from common_tools.RAG.rag_ingestion_pipeline.summary_and_questions.summary_and_questions_creation import SummaryAndQuestionsChunksCreation
 
 class SummaryAndQuestionsChunksService:
+    logger = logging.getLogger(__name__)
     
     async def build_summaries_and_chunks_by_questions_objects_from_docs_async(
              documents: list[Document], llm_and_fallback: list = None, load_existing_summaries_and_questions_from_file: bool = True, file_path: str = './outputs', existing_summaries_and_questions_filename: str = 'summaries_chunks_and_questions_objects.json') -> list[DocWithSummaryChunksAndQuestions]:
@@ -34,20 +36,12 @@ class SummaryAndQuestionsChunksService:
                     if key != 'id' and (key not in doc.metadata or doc.metadata[key] != value):
                         raise ValueError(f"Metadata mismatch in: {doc.metadata['name']} for key: {key}")
         return summaries_and_chunks_by_questions_objects                
-   
-    # def _load_trainings_scraped_details_as_json(files_path: str) -> dict:
-    #     files_str = file.get_files_paths_and_contents(os.path.join(files_path, 'scraped'))
-    #     contents: dict = {}
-    #     for file_path, content_str in files_str.items():
-    #         content = json.loads(content_str)
-    #         contents[content['title']] = content
-    #     return contents
 
     async def _load_existing_summaries_and_questions_objects_from_file_async(docs_with_summary_chunks_and_questions_file_path: str) -> list[DocWithSummaryChunksAndQuestions]:
         if file.exists(docs_with_summary_chunks_and_questions_file_path):
             docs_with_summary_chunks_and_questions_json = file.get_as_json(docs_with_summary_chunks_and_questions_file_path)
             summaries_and_chunks_by_questions_objects = [DocWithSummaryChunksAndQuestions(**doc) for doc in docs_with_summary_chunks_and_questions_json]
-            txt.print(f">>> Loaded existing {len(summaries_and_chunks_by_questions_objects)} docs with: summary, chunks and questions from file: {docs_with_summary_chunks_and_questions_file_path}")
+            SummaryAndQuestionsChunksService.logger.info(f">>> Loaded existing {len(summaries_and_chunks_by_questions_objects)} docs with: summary, chunks and questions from file: {docs_with_summary_chunks_and_questions_file_path}")
             summaries_and_chunks_by_questions_objects = SummaryAndQuestionsChunksCreation._replace_metadata_id_by_doc_id(summaries_and_chunks_by_questions_objects)
             return summaries_and_chunks_by_questions_objects
         return None
@@ -56,13 +50,11 @@ class SummaryAndQuestionsChunksService:
         chunks_and_questions_documents: list[Document] = []
         create_questions_from_data: bool = EnvHelper.get_is_questions_created_from_data()
         merge_questions_with_data: bool = EnvHelper.get_is_mixed_questions_and_data()
+        
+        for summary_and_chunks_object in summaries_and_chunks_by_questions_objects:
+            if not create_questions_from_data:
+                chunks_and_questions_documents.append(Document(page_content=summary_and_chunks_object.text, metadata=summary_and_chunks_object.metadata))
+            else:
+                chunks_and_questions_documents.extend(summary_and_chunks_object.to_langchain_documents_chunked_summary_and_questions(merge_questions_with_data))
 
-        if create_questions_from_data and merge_questions_with_data:
-            for summary_and_chunks_by_questions_object in summaries_and_chunks_by_questions_objects:
-                chunks_and_questions_documents.extend(summary_and_chunks_by_questions_object.to_langchain_documents_chunked_summary_and_questions(True, True))
-        else:
-            for summary_and_chunks_by_questions_object in summaries_and_chunks_by_questions_objects:
-                chunks_and_questions_documents.extend(summary_and_chunks_by_questions_object.to_langchain_documents_chunked_summary_and_questions(True, False))
-                if create_questions_from_data:
-                    chunks_and_questions_documents.extend(summary_and_chunks_by_questions_object.to_langchain_documents_chunked_summary_and_questions(False, True))
         return chunks_and_questions_documents

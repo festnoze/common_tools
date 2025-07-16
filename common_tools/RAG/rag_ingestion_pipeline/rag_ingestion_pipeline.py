@@ -2,25 +2,20 @@ from collections import defaultdict
 import os
 import re
 import json
-import sys
 import time
-from typing import Union
 import uuid
+import numpy as np
+import logging
 
 # langchain related imports
 from langchain_core.runnables import Runnable
 from langchain_core.documents import Document
 from langchain_core.embeddings import Embeddings
 from langchain_chroma import Chroma
-from langchain_community.query_constructors.chroma import ChromaTranslator
 from langchain_qdrant import QdrantVectorStore
 from qdrant_client import QdrantClient
 from pinecone import Pinecone
-from langchain_pinecone import PineconeVectorStore
 from qdrant_client.http.models import Distance, VectorParams
-from langchain_core.embeddings import Embeddings
-import numpy as np
-import logging
 
 # common tools imports
 from common_tools.helpers.txt_helper import txt
@@ -32,13 +27,14 @@ from common_tools.models.vector_db_type import VectorDbType
 from common_tools.helpers.batch_helper import BatchHelper
 from common_tools.RAG.rag_ingestion_pipeline.rag_chunking import RagChunking
 from common_tools.helpers.env_helper import EnvHelper
+from common_tools.models.document_with_text import DocumentWithText
 
 class RagIngestionPipeline:
     def __init__(self, rag: RagService):
         self.logger = logging.getLogger(__name__)
         self.rag_service: RagService = rag
 
-    def chunk_documents(self, documents: list) -> list[Document]:
+    def chunk_documents(self, documents: list[Document]) -> list[Document]:
         """Chunks the provided documents into small pieces"""
         documents_chunks:list[Document] = []
         embedding_size = EnvHelper.get_embedding_size()
@@ -148,7 +144,7 @@ class RagIngestionPipeline:
             collection_name=collection_name,
             vectors_config=VectorParams(size=vector_size, distance=Distance.COSINE)
         )
-        db = QdrantVectorStore(
+        vectorstore = QdrantVectorStore(
                 client= qdrant_client,
                 collection_name= collection_name,
                 embedding= embedding)
@@ -156,11 +152,11 @@ class RagIngestionPipeline:
         batchs = BatchHelper.batch_split_by_count(chunks, batch_size)
         for i, batch in enumerate(batchs):
             txt.print_with_spinner(f"Batch n°{i+1}/{batchs}: Embedding {len(batch)} documents ")
-            db.add_documents(batch)
+            vectorstore.add_documents(batch)
             total_elapsed_seconds += txt.stop_spinner_replace_text(f"Batch n°{i+1}/{batchs} done. {len(chunks)} chunks embedded sucessfully.")
         
         self.logger.info(f"All documents sucessfully uploaded into Qdrant database in: {total_elapsed_seconds}s.")
-        return db
+        return vectorstore
      
     def _embed_and_store_documents_chunks_as_dense_vectors_into_pinecone_db(self, chunks: list[Document], batch_size: int = 2000):
         """Upload document chunks into Pinecone.
@@ -210,7 +206,8 @@ class RagIngestionPipeline:
             dense_embedding_model: Model or method to compute dense embeddings.
         """
         # Create (or load) both sparse and dense embeddings for all documents
-        all_entries = self.load_or_compute_sparse_and_dense_vectors_embeddings_for_chunks(
+        #TODO NOW: replace by when list[tuple[Document, str]]: load_or_compute_sparse_and_dense_vectors_embeddings_with_embedding_different_from_text
+        all_entries = self._load_or_compute_sparse_and_dense_vectors_embeddings_for_chunks(
                                 chunks= chunks,
                                 embedding_model= embedding_model,
                                 load_embeddings_from_file_if_exists= load_embeddings_from_file_if_exists,
@@ -228,7 +225,7 @@ class RagIngestionPipeline:
         self.logger.info(f"All documents sucessfully uploaded into Pinecone database in: {total_elapsed_seconds}s.")
         return Pinecone(index=pinecone_index, embedding=embedding_model)
 
-    def load_or_compute_sparse_and_dense_vectors_embeddings_for_chunks(self, chunks:list[Document], embedding_model:Embeddings, load_embeddings_from_file_if_exists:bool = True, batch_embedding_size:int = 1000, wait_seconds_btw_batches:float = None) -> list[dict]:
+    def _load_or_compute_sparse_and_dense_vectors_embeddings_for_chunks(self, chunks:list[Document], embedding_model:Embeddings, load_embeddings_from_file_if_exists:bool = True, batch_embedding_size:int = 1000, wait_seconds_btw_batches:float = None) -> list[dict]:
         # Try to load existing embeddings (spase + dense) from file
         joined_embeddings_filepath = os.path.join(self.rag_service.vector_db_base_path, self.rag_service.vector_db_full_name + "_joined_sparse_and_dense_embeddings_for_pinecone.json")
         if load_embeddings_from_file_if_exists and file.exists(joined_embeddings_filepath):
@@ -276,15 +273,19 @@ class RagIngestionPipeline:
         all_entries_ids = []
         for doc, sparse_vector, dense_vector in zip(chunks, sparse_vectors, dense_vectors):            
             bm25_sparse_dict = sparse_vectorizer.csr_to_pinecone_sparse_vector_dict(sparse_vector) # Convert CSR matrix to Pinecone dictionary
-            doc.metadata["text"] = doc.page_content  # Add the corresponding text content into metadata
+            
+            # Text corresponding to the vector is page_content for a Document, or content_to_return for a DocumentWithText
+            if isinstance(doc, DocumentWithText):
+                doc.metadata["text"] = doc.content_to_return
+            elif isinstance(doc, Document):
+                doc.metadata["text"] = doc.page_content
             entry_id = doc.metadata.get("id", str(uuid.uuid4()))
+            
             # Make sure that the entry id is unique
             while entry_id in all_entries_ids:
-                self.logger.warning(f"!!! /!\\ Duplicate entry 'id' detected: '{entry_id}'. New id generated !!!")
                 entry_id = str(uuid.uuid4())
-
             if doc.metadata["id"] != entry_id:  
-                self.logger.warning(f"!!! /!\\ Entry 'id' changed from '{doc.metadata['id']}' to '{entry_id}' !!!")
+                self.logger.info(f"!!! /!\\ Entry 'id' changed from '{doc.metadata['id']}' to '{entry_id}' !!!")
                 doc.metadata["id"] = entry_id
             all_entries_ids.append(entry_id)
                 

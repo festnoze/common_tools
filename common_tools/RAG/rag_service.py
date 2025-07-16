@@ -220,8 +220,9 @@ class RagService:
         is_native_hybrid_search = EnvHelper.get_BM25_storage_as_db_sparse_vectors() and EnvHelper.get_is_common_db_for_sparse_and_dense_vectors()
         is_summarized = EnvHelper.get_is_summarized_data()
         has_questions = EnvHelper.get_is_questions_created_from_data()
+        questions_in_data = EnvHelper.get_is_mixed_questions_and_data()
 
-        vectorstore_name_postfix = f"{'-summary' if is_summarized else '-full'}{'-quest' if has_questions else ''}{'-hybrid' if is_native_hybrid_search else ''}"
+        vectorstore_name_postfix = f"{'-summary' if is_summarized else '-full'}{'-quest' if has_questions else ''}{'-vec-only' if not questions_in_data else ''}{'-hybrid' if is_native_hybrid_search else ''}"
             
         # Make the index name specific regarding: native hybrid search (both sparse & dense vectors in the same record), w/ summaries, w/ questions
         vector_db_full_name = vectorstore_base_name + vectorstore_name_postfix
