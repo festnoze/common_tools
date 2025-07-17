@@ -1,5 +1,6 @@
 import logging
 import time
+import math
 from langchain.schema import Document
 from common_tools.helpers.txt_helper import txt
 from common_tools.helpers.file_helper import file
@@ -7,29 +8,55 @@ from common_tools.helpers.llm_helper import Llm
 from common_tools.models.doc_w_summary_chunks_questions import Question, DocChunk, DocWithSummaryChunksAndQuestions, DocWithSummaryChunksAndQuestionsPydantic, DocQuestionsByChunkPydantic
 from common_tools.helpers.ressource_helper import Ressource
 #
+from common_tools.models.file_already_exists_policy import FileAlreadyExistsPolicy
 from common_tools.RAG.rag_service import RagService
 
 class SummaryAndQuestionsChunksCreation:    
     logger = logging.getLogger(__name__)
     
     async def generate_summaries_and_chunks_by_questions_objects_from_docs_async(
-            trainings_docs: list[Document], llm_and_fallback: list, docs_with_summary_chunks_and_questions_file_path: str
-        ) -> list[DocWithSummaryChunksAndQuestions]:
+        trainings_docs: list[Document],
+        llm_and_fallback: list,
+        docs_with_summary_chunks_and_questions_file_path: str,
+        batch_size: int = 300,
+        load_batch_files_if_exists: bool = True
+    ) -> list[DocWithSummaryChunksAndQuestions]:
+
+        start: float = time.time()        
+        total_docs: int = len(trainings_docs)
+        num_batches: int = math.ceil(total_docs / batch_size)
+        complete_trainings_objects: list[DocWithSummaryChunksAndQuestions] = []
         
-        start = time.time()
-        txt.print_with_spinner(f"Generating summaries, chunking and questions in 3 steps for each {len(trainings_docs)} documents")
-        trainings_objects = await SummaryAndQuestionsChunksCreation.create_summary_and_questions_from_docs_in_three_steps_async(llm_and_fallback, trainings_docs, 50)
-        
-        docs_json = [doc.to_dict(include_full_doc=True) for doc in trainings_objects]
-        file.write_file(docs_json, docs_with_summary_chunks_and_questions_file_path)
-        
-        elapsed_str = txt.get_elapsed_str(time.time() - start)
-        txt.stop_spinner_replace_text(f"Finish generating for {len(trainings_objects)} documents. Done in: {elapsed_str}")
-        
-        trainings_objects = SummaryAndQuestionsChunksCreation._replace_metadata_id_by_doc_id(trainings_objects)
-        return trainings_objects
+        for i in range(num_batches):
+            batch_start: int = i * batch_size
+            batch_end: int = min(batch_start + batch_size, total_docs)
+            batch_docs: list[Document] = trainings_docs[batch_start:batch_end]
+            batch_file_path: str = f"{docs_with_summary_chunks_and_questions_file_path}_part_{i}"
+            batch_objects: list[DocWithSummaryChunksAndQuestions]
+            # Check if batch file exists
+            if load_batch_files_if_exists and file.exists(batch_file_path + '.json'):
+                SummaryAndQuestionsChunksCreation.logger.info(f"Loading existing batch file: {batch_file_path}.json")
+                batch_json: list[dict] = file.get_as_json(batch_file_path, fail_if_not_exists=True)
+                batch_objects = [DocWithSummaryChunksAndQuestions(**doc) for doc in batch_json]
+            else:
+                SummaryAndQuestionsChunksCreation.logger.info(f"Processing batch {i+1}/{num_batches} ({batch_start}:{batch_end})")
+                batch_objects = await SummaryAndQuestionsChunksCreation.create_summary_and_questions_from_docs_in_three_steps_async(
+                    llm_and_fallback, batch_docs, 50
+                )
+                batch_json: list[dict] = [doc.to_dict(include_full_doc=True) for doc in batch_objects]
+                file.write_file(batch_json, batch_file_path + '.json', file_exists_policy=FileAlreadyExistsPolicy.Override)
+            complete_trainings_objects.extend(batch_objects)
+
+        # Save the complete processed collection
+        docs_json: list[dict] = [doc.to_dict(include_full_doc=True) for doc in complete_trainings_objects]
+        file.write_file(docs_json, docs_with_summary_chunks_and_questions_file_path + '.json')
+
+        elapsed_str: str = txt.get_elapsed_str(time.time() - start)
+        SummaryAndQuestionsChunksCreation.logger.info(f"Finish generating for {len(complete_trainings_objects)} documents. Done in: {elapsed_str}")
+        complete_trainings_objects = SummaryAndQuestionsChunksCreation._replace_metadata_id_by_doc_id(complete_trainings_objects)
+        return complete_trainings_objects
     
-    def _replace_metadata_id_by_doc_id(trainings_objects: list[DocWithSummaryChunksAndQuestions]):
+    def _replace_metadata_id_by_doc_id(trainings_objects: list[DocWithSummaryChunksAndQuestions]) -> list[DocWithSummaryChunksAndQuestions]:
         for doc in trainings_objects:
             doc.metadata['id'] = doc.metadata['doc_id']
         return trainings_objects

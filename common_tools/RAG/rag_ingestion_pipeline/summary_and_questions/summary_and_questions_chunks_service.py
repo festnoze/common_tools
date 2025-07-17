@@ -12,7 +12,7 @@ class SummaryAndQuestionsChunksService:
     logger = logging.getLogger(__name__)
     
     async def build_summaries_and_chunks_by_questions_objects_from_docs_async(
-             documents: list[Document], llm_and_fallback: list = None, load_existing_summaries_and_questions_from_file: bool = True, file_path: str = './outputs', existing_summaries_and_questions_filename: str = 'summaries_chunks_and_questions_objects.json') -> list[DocWithSummaryChunksAndQuestions]:
+             documents: list[Document], llm_and_fallback: list = None, load_existing_summaries_and_questions_from_file: bool = True, file_path: str = './outputs', existing_summaries_and_questions_filename: str = 'summaries_chunks_and_questions_objects') -> list[DocWithSummaryChunksAndQuestions]:
         
         summaries_and_chunks_by_questions_objects: list[DocWithSummaryChunksAndQuestions] = None
         
@@ -22,7 +22,7 @@ class SummaryAndQuestionsChunksService:
             
         if not summaries_and_chunks_by_questions_objects:
             summaries_and_chunks_by_questions_objects = await SummaryAndQuestionsChunksCreation.generate_summaries_and_chunks_by_questions_objects_from_docs_async(
-                documents, llm_and_fallback, docs_with_summary_chunks_and_questions_file_path
+                documents, llm_and_fallback, docs_with_summary_chunks_and_questions_file_path, load_batch_files_if_exists=load_existing_summaries_and_questions_from_file
             )
 
         # Verify that each loaded/generated summaries and chunks by questions objects correspond to each provided documents
@@ -38,6 +38,8 @@ class SummaryAndQuestionsChunksService:
         return summaries_and_chunks_by_questions_objects                
 
     async def _load_existing_summaries_and_questions_objects_from_file_async(docs_with_summary_chunks_and_questions_file_path: str) -> list[DocWithSummaryChunksAndQuestions]:
+        if not docs_with_summary_chunks_and_questions_file_path.endswith('.json'):
+            docs_with_summary_chunks_and_questions_file_path += '.json'
         if file.exists(docs_with_summary_chunks_and_questions_file_path):
             docs_with_summary_chunks_and_questions_json = file.get_as_json(docs_with_summary_chunks_and_questions_file_path)
             summaries_and_chunks_by_questions_objects = [DocWithSummaryChunksAndQuestions(**doc) for doc in docs_with_summary_chunks_and_questions_json]

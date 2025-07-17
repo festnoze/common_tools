@@ -159,7 +159,7 @@ class RagService:
                 self.logger.info(f"✓ Loaded Qdrant vectorstore: '{vector_db_full_name}'.")
                 
             elif vectorstore_type == VectorDbType.Pinecone:
-                from pinecone import Pinecone
+                from pinecone import Pinecone, ServerlessSpec
                 from langchain_pinecone import PineconeVectorStore
                 # Detect whether we leverage Pinecone integrated inference (internal embeddings)
                 use_internal_emb: bool = EnvHelper.get_use_pinecone_internal_embedding()
@@ -172,38 +172,45 @@ class RagService:
                     model_name: str = 'multilingual-e5-large' # almost: EnvHelper.get_embedding_model().model_name
                     
                     if vector_db_full_name not in pinecone_client.list_indexes().names():
-                        pinecone_client.create_index_for_model(
-                            name=vector_db_full_name,
-                            cloud='aws',
-                            region='us-east-1',
-                            embed={
-                                'model': model_name,
-                                'field_map': {'text': 'text'}
-                            }
+                        pinecone_instance.create_index(
+                            name= vector_db_full_name, 
+                            dimension=embedding_vector_size,
+                            metric= "dotproduct" if is_native_hybrid_search else "cosine",
+                            #pod_type="s1",
+                            spec=ServerlessSpec(
+                                    cloud='aws',
+                                    region='us-east-1'
+                            )
                         )
                         while not pinecone_client.describe_index(vector_db_full_name).status['ready']:
                             time.sleep(1)
-
+                        self.logger.warning(f"### Created new Pinecone vectorstore Index: '{vector_db_full_name}' (containing " + str(pinecone_index.describe_index_stats()['total_vector_count']) + " records).")
+                    
                     vectorstore = pinecone_client.Index(vector_db_full_name)
 
-                    self.logger.info(f"✓ Loaded Pinecone integrated-inference index '{vector_db_full_name}. Total vectors: {str(vectorstore.describe_index_stats().get('total_vector_count', 0))}")
-    
+                    self.logger.info(f"===> ✓ Loaded Pinecone integrated-inference index '{vector_db_full_name}. Total vectors: {str(vectorstore.describe_index_stats().get('total_vector_count', 0))}") 
                 else:
                     # Create Pinecone Index if not exists
                     if vector_db_full_name not in pinecone_client.list_indexes().names():
                         embedding_vector_size = len(self.embedding.embed_query("test"))
                         is_native_hybrid_search = EnvHelper.get_is_common_db_for_sparse_and_dense_vectors()
                         pinecone_client.create_index(
-                            name=vector_db_full_name,
-                            dimension=embedding_vector_size,
-                            metric="dotproduct" if is_native_hybrid_search else "cosine",
-                            spec= {'cloud': 'aws', 'region': 'us-east-1'}
+                                        name= vector_db_full_name, 
+                                        dimension=embedding_vector_size,
+                                        metric= "dotproduct" if is_native_hybrid_search else "cosine",
+                                        #pod_type="s1",
+                                        spec=ServerlessSpec(
+                                                cloud='aws',
+                                                region='us-east-1'
+                                        )
                         )
                         while not pinecone_client.describe_index(vector_db_full_name).status['ready']:
                             time.sleep(1)
+                        self.logger.warning(f"### Created new Pinecone vectorstore Index: '{vector_db_full_name}' (containing " + str(pinecone_index.describe_index_stats()['total_vector_count']) + " records).")
+                    
                     # Load the specified index   
                     pinecone_index = pinecone_client.Index(name=vector_db_full_name)
-                    self.logger.info(f"✓ Loaded Pinecone vectorstore: '{vector_db_full_name}' index, containing " + str(pinecone_index.describe_index_stats()['total_vector_count']) + " vectors total.")
+                    self.logger.info(f"===> ✓ Loaded Pinecone vectorstore index:'{vector_db_full_name}' , containing " + str(pinecone_index.describe_index_stats()['total_vector_count']) + " vectors total.")
                     vectorstore = PineconeVectorStore(index=pinecone_index, embedding=self.embedding)
 
             if vectorstore:
@@ -222,7 +229,7 @@ class RagService:
         has_questions = EnvHelper.get_is_questions_created_from_data()
         questions_in_data = EnvHelper.get_is_mixed_questions_and_data()
 
-        vectorstore_name_postfix = f"{'-summary' if is_summarized else '-full'}{'-quest' if has_questions else ''}{'-vec-only' if not questions_in_data else ''}{'-hybrid' if is_native_hybrid_search else ''}"
+        vectorstore_name_postfix = f"{'-summary' if is_summarized else '-full'}{'-quest' if has_questions else ''}{'-diff-output' if not questions_in_data else ''}{'-hybrid' if is_native_hybrid_search else ''}"
             
         # Make the index name specific regarding: native hybrid search (both sparse & dense vectors in the same record), w/ summaries, w/ questions
         vector_db_full_name = vectorstore_base_name + vectorstore_name_postfix

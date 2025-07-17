@@ -16,6 +16,7 @@ from langchain_qdrant import QdrantVectorStore
 from qdrant_client import QdrantClient
 from pinecone import Pinecone
 from qdrant_client.http.models import Distance, VectorParams
+from langchain_pinecone import PineconeVectorStore
 
 # common tools imports
 from common_tools.helpers.txt_helper import txt
@@ -113,7 +114,7 @@ class RagIngestionPipeline:
                 if EnvHelper.get_is_common_db_for_sparse_and_dense_vectors():
                     db = self._embed_documents_as_dense_and_sparse_vectors_and_store_into_pinecone_db(
                                     chunks= docs_chunks,
-                                    pinecone_index= self.rag_service.vectorstore,
+                                    pinecone_vectorstore= self.rag_service.vectorstore,
                                     embedding_model= self.rag_service.embedding,
                                     load_embeddings_from_file_if_exists= load_embeddings_from_file_if_exists)
                 else:
@@ -195,7 +196,7 @@ class RagIngestionPipeline:
         self.logger.info(f"All documents successfully uploaded into Pinecone database in: {total_elapsed_seconds}s.")
         return self.rag_service.vectorstore
     
-    def _embed_documents_as_dense_and_sparse_vectors_and_store_into_pinecone_db(self, chunks: list[Document], pinecone_index, embedding_model: Embeddings, load_embeddings_from_file_if_exists = True, batch_size_in_mega_bytes: int = 1):
+    def _embed_documents_as_dense_and_sparse_vectors_and_store_into_pinecone_db(self, chunks: list[Document], pinecone_vectorstore: PineconeVectorStore, embedding_model: Embeddings, load_embeddings_from_file_if_exists = True, batch_size_in_mega_bytes: int = 5):
         """
         Embeds documents with BM25 (sparse) and dense embeddings and stores them in Pinecone.
         
@@ -214,16 +215,25 @@ class RagIngestionPipeline:
                                 batch_embedding_size= 1000,
                                 wait_seconds_btw_batches= None)
 
+        # Make sure that the entry id is unique
+        # TMP: can be removed, redundant with previous ids reaffectation (but missing for actual saved file w/ dense + sparse vectors)
+        all_entries_ids = []
+        for doc in all_entries:
+            while doc["metadata"]["id"] in all_entries_ids:
+                doc["metadata"]["id"] = str(uuid.uuid4())
+                doc["id"] = doc["metadata"]["id"]
+            all_entries_ids.append(doc["id"])
+
         # Insert the sparse + dense embeddings into the current Pinecone vector database (index)
         total_elapsed_seconds = 0
         insertion_batches = BatchHelper.batch_split_by_size_in_kilo_bytes(all_entries, batch_size_in_mega_bytes * 1024)
         for i, batch_entries in enumerate(insertion_batches):
             txt.print_with_spinner(f"Inserting {len(batch_entries)} documents into Pinecone DB. Batch n°{i+1}/{len(insertion_batches)}.")
-            pinecone_index.upsert(batch_entries)
+            pinecone_vectorstore._index.upsert(batch_entries)
             total_elapsed_seconds += txt.stop_spinner_replace_text(f"Batch n°{i+1}/{len(insertion_batches)} done. {len(batch_entries)} documents' chunks inserted sucessfully into database.")
 
         self.logger.info(f"All documents sucessfully uploaded into Pinecone database in: {total_elapsed_seconds}s.")
-        return Pinecone(index=pinecone_index, embedding=embedding_model)
+        return Pinecone(index=pinecone_vectorstore, embedding=embedding_model)
 
     def _load_or_compute_sparse_and_dense_vectors_embeddings_for_chunks(self, chunks:list[Document], embedding_model:Embeddings, load_embeddings_from_file_if_exists:bool = True, batch_embedding_size:int = 1000, wait_seconds_btw_batches:float = None) -> list[dict]:
         # Try to load existing embeddings (spase + dense) from file
@@ -281,7 +291,7 @@ class RagIngestionPipeline:
                 doc.metadata["text"] = doc.page_content
             entry_id = doc.metadata.get("id", str(uuid.uuid4()))
             
-            # Make sure that the entry id is unique
+            # Make sure each entry id is unique
             while entry_id in all_entries_ids:
                 entry_id = str(uuid.uuid4())
             if doc.metadata["id"] != entry_id:  
