@@ -131,8 +131,8 @@ class Llm:
         answers = []
         for chains_batch in chains_batches:
             combined = RunnableParallel(**{f"invoke_{i}": chain for i, chain in enumerate(chains_batch)})
-            parallel_chains = combined.with_config({"run_name": f"{action_name}{f"- batch x{str(batch_size)}" if (batch_size and len(chains_batches)>1) else ""}"})
-            responses = await parallel_chains.ainvoke(inputs) #TODO: try replace by: abatch
+            parallel_chains = combined.with_config({"run_name": action_name + (f" - batch x{str(batch_size)}" if (batch_size and len(chains_batches)>1) else "")})
+            responses = await parallel_chains.ainvoke(inputs) #TODO: try replace by: abatch ?
 
             responses_list = [responses[key] for key in responses.keys()]
             batch_answers = [Llm.get_content(response) for response in responses_list]
