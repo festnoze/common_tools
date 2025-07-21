@@ -70,7 +70,7 @@ setup(
         'License :: OSI Approved :: MIT License',
         'Operating System :: OS Independent',
     ],
-    python_requires='>=3.12',
+    python_requires='>=3.11.10',
     include_package_data=True,  # Permet d'inclure les fichiers spécifiés dans MANIFEST.in
     package_data={        
         # If any folder contains ressources files (which are not python files, like *.txt files), reference those folders here to include them into the 'common_tools' package:
