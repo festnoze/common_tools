@@ -111,6 +111,7 @@ class Conversation:
         messages_json = []
         for message in self.messages:
             message_json = {
+                "id": str(message.id),
                 "source": message.role,
                 "content": message.content
             }
@@ -118,4 +119,4 @@ class Conversation:
         return messages_json #[::-1] #reverse messages' order
     
     def __repr__(self) -> str:
-        return f"Conv. with {self.user_name}: {len(self.messages)} messages"
+        return f"Conv. with {self.user.name if self.user else 'Unknown user'}: {len(self.messages)} messages"
