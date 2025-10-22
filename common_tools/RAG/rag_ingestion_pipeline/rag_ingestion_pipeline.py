@@ -6,17 +6,45 @@ import time
 import uuid
 import numpy as np
 import logging
+from typing import TYPE_CHECKING
 
 # langchain related imports
 from langchain_core.runnables import Runnable
 from langchain_core.documents import Document
 from langchain_core.embeddings import Embeddings
 from langchain_chroma import Chroma
-from langchain_qdrant import QdrantVectorStore
-from qdrant_client import QdrantClient
-from pinecone import Pinecone
-from qdrant_client.http.models import Distance, VectorParams
-from langchain_pinecone import PineconeVectorStore
+
+# Lazy imports for optional vector databases
+if TYPE_CHECKING:
+    from langchain_qdrant import QdrantVectorStore
+    from qdrant_client import QdrantClient
+    from qdrant_client.http.models import Distance, VectorParams
+    from pinecone import Pinecone
+    from langchain_pinecone import PineconeVectorStore
+
+# Lazy import helpers
+def _import_qdrant():
+    """Lazy import for Qdrant dependencies."""
+    try:
+        from langchain_qdrant import QdrantVectorStore
+        from qdrant_client import QdrantClient
+        from qdrant_client.http.models import Distance, VectorParams
+        return QdrantVectorStore, QdrantClient, Distance, VectorParams
+    except ImportError as e:
+        raise ImportError(
+            "Qdrant dependencies not found. Install with: pip install common_tools[qdrant]"
+        ) from e
+
+def _import_pinecone():
+    """Lazy import for Pinecone dependencies."""
+    try:
+        from pinecone import Pinecone
+        from langchain_pinecone import PineconeVectorStore
+        return Pinecone, PineconeVectorStore
+    except ImportError as e:
+        raise ImportError(
+            "Pinecone dependencies not found. Install with: pip install common_tools[pinecone]"
+        ) from e
 
 # common tools imports
 from common_tools.helpers.txt_helper import txt
@@ -137,7 +165,8 @@ class RagIngestionPipeline:
         self.logger.info(f"All documents sucessfully uploaded into Chroma database in: {total_elapsed_seconds}s.")         
         return db
     
-    def _embed_and_store_documents_chunks_as_dense_vectors_into_qdrant_db(self, chunks:list[Document], embedding:Embeddings, vector_db_path: str = '', collection_name:str = 'main', batch_size:int = 2000) -> QdrantVectorStore:
+    def _embed_and_store_documents_chunks_as_dense_vectors_into_qdrant_db(self, chunks:list[Document], embedding:Embeddings, vector_db_path: str = '', collection_name:str = 'main', batch_size:int = 2000):
+        QdrantVectorStore, QdrantClient, Distance, VectorParams = _import_qdrant()
         self.logger.info(f"Start embedding of {len(chunks)} chunks of documents...")
         vector_size = len(embedding.embed_query("test"))  # Determine the vector size
         qdrant_client = QdrantClient(path=vector_db_path)
@@ -233,6 +262,7 @@ class RagIngestionPipeline:
             total_elapsed_seconds += txt.stop_spinner_replace_text(f"Batch n°{i+1}/{len(insertion_batches)} done. {len(batch_entries)} documents' chunks inserted sucessfully into database.")
 
         self.logger.info(f"All documents sucessfully uploaded into Pinecone database in: {total_elapsed_seconds}s.")
+        Pinecone, _ = _import_pinecone()
         return Pinecone(index=pinecone_vectorstore, embedding=embedding_model)
 
     def _load_or_compute_sparse_and_dense_vectors_embeddings_for_chunks(self, chunks:list[Document], embedding_model:Embeddings, load_embeddings_from_file_if_exists:bool = True, batch_embedding_size:int = 1000, wait_seconds_btw_batches:float = None) -> list[dict]:

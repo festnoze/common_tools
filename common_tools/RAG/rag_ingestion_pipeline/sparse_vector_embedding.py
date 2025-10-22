@@ -1,19 +1,38 @@
 import os
 import numpy as np
 import pickle
-from sklearn.feature_extraction.text import TfidfVectorizer
-from scipy.sparse import csr_matrix
+from typing import TYPE_CHECKING
 from langchain_core.documents import Document
+
+if TYPE_CHECKING:
+    from sklearn.feature_extraction.text import TfidfVectorizer
+    from scipy.sparse import csr_matrix
+
+# Lazy import helper
+def _import_ml_dependencies():
+    """Lazy import for ML/scientific dependencies."""
+    try:
+        from sklearn.feature_extraction.text import TfidfVectorizer
+        from scipy.sparse import csr_matrix
+        return TfidfVectorizer, csr_matrix
+    except ImportError as e:
+        raise ImportError(
+            "ML dependencies (scikit-learn, scipy) not found. "
+            "Install with: pip install common_tools[ml]"
+        ) from e
+
 #
 from common_tools.helpers.file_helper import file
 from common_tools.helpers.txt_helper import txt
 
 class SparseVectorEmbedding:
-    vectorizer: TfidfVectorizer = None
+    vectorizer = None  # Will be TfidfVectorizer instance
     file_base_path:str = None
     sparse_vectorizer_filename:str = None
 
     def __init__(self, file_base_path, file_prefix, load_vectorizer_from_file=True, k1=1.5, b=0.75):
+        # Ensure ML dependencies are available
+        _import_ml_dependencies()
         if not SparseVectorEmbedding.file_base_path:
             SparseVectorEmbedding.file_base_path = file_base_path
         if not SparseVectorEmbedding.sparse_vectorizer_filename:
@@ -47,17 +66,19 @@ class SparseVectorEmbedding:
         if SparseVectorEmbedding.vectorizer: return
         if not SparseVectorEmbedding.file_base_path: raise ValueError("SparseVectorEmbedding.file_base_path is not set. Please set it before creating the vectorizer.")
         filepath = os.path.join(SparseVectorEmbedding.file_base_path, SparseVectorEmbedding.sparse_vectorizer_filename)
-        
+
+        TfidfVectorizer, _ = _import_ml_dependencies()
         SparseVectorEmbedding.vectorizer = TfidfVectorizer(norm=None, smooth_idf=False, use_idf=True)
         if file.exists(filepath):
             file.delete_file(filepath)
             txt.print(f"/!\\ Previous existing Sparse Vectorizer file deleted: '{filepath}'.")
 
     def encode_queries(self, query:str):
-        csr_matrix = self.embed_documents_as_csr_matrix_sparse_vectors_for_TF_IDF([query])
-        return self.csr_to_pinecone_sparse_vector_dict(csr_matrix)
-    
-    def embed_documents_as_csr_matrix_sparse_vectors_for_TF_IDF(self, docs: list[str]) -> csr_matrix:
+        csr_mat = self.embed_documents_as_csr_matrix_sparse_vectors_for_TF_IDF([query])
+        return self.csr_to_pinecone_sparse_vector_dict(csr_mat)
+
+    def embed_documents_as_csr_matrix_sparse_vectors_for_TF_IDF(self, docs: list[str]):
+        _, csr_matrix = _import_ml_dependencies()
         # Vectorizing documents into sparse vectors with TfidfVectorizer
         sparse_vectors = SparseVectorEmbedding.vectorizer.fit_transform(docs)  # Sparse matrix
         txt.print(f"Shape of the sparse vectors: {sparse_vectors.shape}")
@@ -70,9 +91,10 @@ class SparseVectorEmbedding:
     
     def embed_documents_as_sparse_vectors_for_BM25_initial(self, documents_contents:list[str]):
         """
-        Embeds a set of documents as BM25-compatible sparse vectors. 
+        Embeds a set of documents as BM25-compatible sparse vectors.
         Learns vocabulary, IDF, and document statistics during this process.
         """
+        _, csr_matrix = _import_ml_dependencies()
         # Learn vocabulary and IDF, calculate sparse TF matrix
         tf = SparseVectorEmbedding.vectorizer.fit_transform(documents_contents)  # Sparse term-frequency matrix
 
@@ -100,12 +122,13 @@ class SparseVectorEmbedding:
 
     def embed_documents_as_sparse_vectors_for_BM25_upon_previous_vocabulary(self, new_documents_contents:list[str]):
         """
-        Embeds a new set of documents as BM25-compatible sparse vectors 
+        Embeds a new set of documents as BM25-compatible sparse vectors
         using the vocabulary and statistics learned from the initial set of documents.
         """
         if self.avg_doc_length is None:
             raise ValueError("The vectorizer needs to embed the initial documents first (call embed_documents_as_sparse_vectors_for_BM25_initial).")
-        
+
+        _, csr_matrix = _import_ml_dependencies()
         # Transform using the existing vocabulary
         tf = SparseVectorEmbedding.vectorizer.transform(new_documents_contents)  # Sparse term-frequency matrix
         doc_lengths = np.array(tf.sum(axis=1)).flatten()  # Row-wise sum (document lengths)

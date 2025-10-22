@@ -8,19 +8,18 @@ from common_tools.helpers.txt_helper import txt
 
 import os
 import uuid
-from dotenv import load_dotenv
 import openai
 
 class LangChainFactory():
     @staticmethod
     def set_openai_apikey():
-        if not 'OPENAI_API_KEY' in os.environ:
+        if 'OPENAI_API_KEY' not in os.environ:
             openai_api_key = EnvHelper.get_openai_api_key()     
             openai.api_key = openai_api_key
 
     @staticmethod
     def create_llms_from_infos(llms_infos: list[LlmInfo]) -> list[Runnable]:
-        txt.print_with_spinner(f'Loading LLM models ...')
+        txt.print_with_spinner('Loading LLM models ...')
         if isinstance(llms_infos, LlmInfo):
             llms_infos = [llms_infos]
         if len(llms_infos) == 0:
@@ -40,7 +39,7 @@ class LangChainFactory():
     
     @staticmethod
     def create_llm_from_info(llm_info: LlmInfo) -> Runnable:
-        txt.print_with_spinner(f'Loading LLM model ...')
+        txt.print_with_spinner('Loading LLM model ...')
         llm = LangChainFactory.create_llm(
             adapter_type= llm_info.type,
             llm_model_name= llm_info.model,
@@ -56,7 +55,8 @@ class LangChainFactory():
     def create_llm(adapter_type: LangChainAdapterType, llm_model_name: str, timeout_seconds: int = 50, temperature: float = 0.1, inference_provider_api_key: str = None, extra_body_dict: dict[str, any] = {}) -> Runnable:
         llm: Runnable = None
         if adapter_type == LangChainAdapterType.OpenAI:
-            if not inference_provider_api_key: inference_provider_api_key = EnvHelper.get_openai_api_key()
+            if not inference_provider_api_key: 
+                inference_provider_api_key = EnvHelper.get_openai_api_key()
             llm = LangChainFactory.create_openai_llm(llm_model_name, inference_provider_api_key, timeout_seconds, temperature)
 
         elif adapter_type == LangChainAdapterType.InferenceProvider:
@@ -75,7 +75,8 @@ class LangChainFactory():
             llm = LangChainFactory.create_ollama_llm(llm_model_name, timeout_seconds, temperature)
 
         elif adapter_type == LangChainAdapterType.Groq:            
-            if not inference_provider_api_key: inference_provider_api_key = EnvHelper.get_groq_api_key()
+            if not inference_provider_api_key:
+                inference_provider_api_key = EnvHelper.get_groq_api_key()
             llm = LangChainFactory.create_groq_llm(llm_model_name, inference_provider_api_key, timeout_seconds, temperature)
 
         elif adapter_type == LangChainAdapterType.Google:
@@ -83,7 +84,8 @@ class LangChainFactory():
             llm = LangChainFactory.create_google_llm(llm_model_name, inference_provider_api_key, timeout_seconds, temperature)
 
         elif adapter_type == LangChainAdapterType.Anthropic:            
-            if not inference_provider_api_key: inference_provider_api_key = EnvHelper.get_anthropic_api_key()
+            if not inference_provider_api_key:
+                inference_provider_api_key = EnvHelper.get_anthropic_api_key()
             llm = LangChainFactory.create_anthropic_llm(llm_model_name, inference_provider_api_key, timeout_seconds, temperature)
 
         else:
@@ -93,6 +95,7 @@ class LangChainFactory():
     @staticmethod
     def create_openai_llm(llm_model_name: str, api_key: str, timeout_seconds: int = 50, temperature:float = 0.1) -> BaseChatModel:
         from langchain_openai import ChatOpenAI
+        #TODO: test liteLLM: from langchain.lite_llm import 
         return ChatOpenAI(    
             name= f'openai_chat_{str(uuid.uuid4())}',
             model_name= llm_model_name,

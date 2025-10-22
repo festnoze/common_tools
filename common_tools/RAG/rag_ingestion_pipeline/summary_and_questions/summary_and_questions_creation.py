@@ -1,7 +1,7 @@
 import logging
 import time
 import math
-from langchain.schema import Document
+from langchain_core.documents import Document
 from common_tools.helpers.txt_helper import txt
 from common_tools.helpers.file_helper import file
 from common_tools.helpers.llm_helper import Llm

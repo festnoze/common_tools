@@ -153,7 +153,7 @@ class PineconeHybridSearchRetriever(BaseRetriever):
         except ImportError:
             raise ImportError(
                 "Could not import pinecone_text python package. "
-                "Please install it with `pip install pinecone_text`."
+                "Please install it with: pip install common_tools[pinecone]"
             )
         return values
 

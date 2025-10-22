@@ -6,7 +6,7 @@ from common_tools.models.metadata_description import MetadataDescription
 from common_tools.helpers.matching_helper import MatchingHelper
 from common_tools.helpers.txt_helper import txt
 #
-from langchain.schema import Document
+from langchain_core.documents import Document
 from langchain_community.query_constructors.chroma import ChromaTranslator
 from langchain_community.query_constructors.qdrant import QdrantTranslator
 from langchain_community.query_constructors.pinecone import PineconeTranslator

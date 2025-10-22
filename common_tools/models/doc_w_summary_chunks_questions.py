@@ -1,8 +1,21 @@
 import logging
-from typing import Union
+from typing import Union, TYPE_CHECKING
 from pydantic import BaseModel, Field
-import pandas as pd
-from langchain.schema import Document
+from langchain_core.documents import Document
+
+if TYPE_CHECKING:
+    import pandas as pd
+
+def _import_pandas():
+    """Lazy import for pandas."""
+    try:
+        import pandas as pd
+        return pd
+    except ImportError as e:
+        raise ImportError(
+            "Pandas not found. Install with: pip install common_tools[ml]"
+        ) from e
+
 #
 from common_tools.helpers.txt_helper import txt
 from common_tools.models.document_with_text import DocumentWithText
@@ -104,6 +117,7 @@ class DocWithSummaryChunksAndQuestions:
         return chunks_with_questions_typed
     
     def display_to_terminal_pandas(self):
+        pd = _import_pandas()
         data = []
         max_questions = 0
         data.append({'Summary: ': self.doc_summary})

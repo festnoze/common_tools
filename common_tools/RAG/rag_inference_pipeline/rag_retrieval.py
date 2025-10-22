@@ -4,7 +4,6 @@ from typing import Optional, Union
 from langchain_core.documents import Document
 from langchain.retrievers import EnsembleRetriever
 from langchain_community.retrievers import BM25Retriever
-from pinecone_text.sparse import BM25Encoder
 from langchain.retrievers import ContextualCompressionRetriever
 from langchain.retrievers.document_compressors import LLMChainExtractor
 from langchain.retrievers.document_compressors import LLMChainFilter
