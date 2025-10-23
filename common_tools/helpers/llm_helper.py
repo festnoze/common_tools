@@ -171,9 +171,7 @@ class Llm:
     
     @staticmethod
     async def invoke_as_async_stream(action_name:str, llm_or_chain: Runnable, input, content_chunks:list[str] = None, does_stream_across_http: bool = False):
-        if not content_chunks: content_chunks = []
         has_content_prop:bool = None
-        
         llm_or_chain_w_config = llm_or_chain.with_config({"run_name": f"{action_name}"})
 
         async for chunk in llm_or_chain_w_config.astream(input):
@@ -185,12 +183,13 @@ class Llm:
                 elif isinstance(chunk, str): #LangChainAdapterType.Ollama
                     has_content_prop = False
                 else:
-                    raise ValueError(f"Unknown stream structure: neither OpenAI nor Ollama")
+                    raise ValueError("Unknown stream structure: neither OpenAI nor Ollama")
             
             content = chunk if not has_content_prop else chunk.content
             
             if content is not None and content != '':
-                content_chunks.append(content)
+                if content_chunks is not None:
+                    content_chunks.append(content)
                 content = content.replace('\r\n', '\n')
                 if does_stream_across_http:
                     yield content.replace('\n', Llm.new_line_for_stream_over_http).encode('utf-8')
