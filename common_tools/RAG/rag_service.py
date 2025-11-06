@@ -3,7 +3,6 @@ import time
 import logging
 from typing import List, Optional, Union
 import json
-from collections import defaultdict
 
 # langchain related imports
 from langchain_core.runnables import Runnable
@@ -12,7 +11,6 @@ from langchain_core.embeddings import Embeddings
 from langchain_core.vectorstores import VectorStore
 
 # common tools imports
-from common_tools.helpers.txt_helper import txt
 from common_tools.helpers.llm_helper import Llm
 from common_tools.models.llm_info import LlmInfo
 from common_tools.helpers.file_helper import file
@@ -25,8 +23,10 @@ from common_tools.models.vector_db_type import VectorDbType
 class RagServiceFactory:
     @staticmethod
     def build_from_env_config(vector_db_base_path:str = None, documents_json_filename:str = None) -> 'RagService':
-        if not vector_db_base_path: vector_db_base_path = './storage'
-        if not documents_json_filename: documents_json_filename = 'bm25_documents.json'
+        if not vector_db_base_path:
+            vector_db_base_path = './storage'
+        if not documents_json_filename:
+            documents_json_filename = 'bm25_documents.json'
 
         embedding_model = EnvHelper.get_embedding_model()
         llms_infos      = EnvHelper.get_llms_infos_from_env_config()
@@ -61,8 +61,10 @@ class RagService:
 
     def __init__(self, llms_or_info: Optional[Union[LlmInfo, Runnable, list]], embedding_model:EmbeddingModel= None, vector_db_base_path:str = None, vector_db_type:VectorDbType = VectorDbType('chroma'), vector_db_base_name:str = 'main', documents_json_filename:str = None):
         # Init default parameters values if not setted
-        if not vector_db_base_path: vector_db_base_path = './storage'
-        if not documents_json_filename: documents_json_filename = 'bm25_documents.json'
+        if not vector_db_base_path:
+            vector_db_base_path = './storage'
+        if not documents_json_filename:
+            documents_json_filename = 'bm25_documents.json'
         self.llms_infos: list[LlmInfo] = None
         self.llm_1=None
         self.llm_2=None
@@ -107,8 +109,10 @@ class RagService:
             self.llm_1 = self.init_llm(llm_or_infos)
         
         #set default llms if undefined
-        if not self.llm_2: self.llm_2 = self.llm_1
-        if not self.llm_3: self.llm_3 = self.llm_2
+        if not self.llm_2:
+            self.llm_2 = self.llm_1
+        if not self.llm_3:
+            self.llm_3 = self.llm_2
     
     def init_llm(self, llm_or_info: Optional[Union[LlmInfo, Runnable]], test_inference:bool = False) -> Runnable:
         if isinstance(llm_or_info, LlmInfo) or (isinstance(llm_or_info, list) and any(llm_or_info) and isinstance(llm_or_info[0], LlmInfo)):            
@@ -169,10 +173,11 @@ class RagService:
                 if use_internal_emb:
                     vector_db_full_name += '-int-emb'
                     self.vector_db_full_name = vector_db_full_name
-                    model_name: str = 'multilingual-e5-large' # almost: EnvHelper.get_embedding_model().model_name
                     
                     if vector_db_full_name not in pinecone_client.list_indexes().names():
-                        pinecone_instance.create_index(
+                        embedding_vector_size = len(self.embedding.embed_query("test"))
+                        is_native_hybrid_search = EnvHelper.get_is_common_db_for_sparse_and_dense_vectors()
+                        pinecone_client.create_index(
                             name= vector_db_full_name, 
                             dimension=embedding_vector_size,
                             metric= "dotproduct" if is_native_hybrid_search else "cosine",
@@ -184,7 +189,7 @@ class RagService:
                         )
                         while not pinecone_client.describe_index(vector_db_full_name).status['ready']:
                             time.sleep(1)
-                        self.logger.warning(f"### Created new Pinecone vectorstore Index: '{vector_db_full_name}' (containing " + str(pinecone_index.describe_index_stats()['total_vector_count']) + " records).")
+                        self.logger.warning(f"### Created new Pinecone vectorstore Index: '{vector_db_full_name}'.")
                     
                     vectorstore = pinecone_client.Index(vector_db_full_name)
 
@@ -206,7 +211,7 @@ class RagService:
                         )
                         while not pinecone_client.describe_index(vector_db_full_name).status['ready']:
                             time.sleep(1)
-                        self.logger.warning(f"### Created new Pinecone vectorstore Index: '{vector_db_full_name}' (containing " + str(pinecone_index.describe_index_stats()['total_vector_count']) + " records).")
+                        self.logger.warning(f"### Created new Pinecone vectorstore Index: '{vector_db_full_name}'.")
                     
                     # Load the specified index   
                     pinecone_index = pinecone_client.Index(name=vector_db_full_name)

@@ -6,7 +6,6 @@ Mais il s'agit de créer un document de référence qui sera utilisé dans un pi
 </Instructions>
 
 <Format de sortie>
-//Retourne un json avec une clé 'summary' et le résumé dans la valeur de cette clé.
 Retourne le résumé directement et sans aucune autre texte, ni introductif, ni conclusif.
 Le résumé doit être en 'plain text', sans aucun marquage markdown ou autre.
 </Format de sortie>

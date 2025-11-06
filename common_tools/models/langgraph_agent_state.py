@@ -1,4 +1,4 @@
-from typing import TypedDict, Annotated, List, Union
+from typing import TypedDict, Annotated, Union
 from langchain_core.agents import AgentAction, AgentFinish
 from langchain_core.messages import BaseMessage
 import operator

@@ -2,7 +2,8 @@ class MatchingHelper:
     @staticmethod
     def find_best_approximate_match(reference_values: list[str], value_to_compare: str) -> tuple[str, float]:
         from fuzzywuzzy import process
-        best_match: str; score: float
+        best_match: str
+        score: float
         best_match, score = process.extractOne(value_to_compare, reference_values)
         return best_match, score / 100.0
 

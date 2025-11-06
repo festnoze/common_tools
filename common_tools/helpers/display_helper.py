@@ -5,7 +5,7 @@ class display:
         txt.print(f"{title}:")
         txt.print(f"• assistant id: '{assistant_set.assistant.id}'")
         txt.print(f"• thread id:    '{assistant_set.thread.id}'")
-        txt.print(f"----------------------------------------------")
+        txt.print("----------------------------------------------")
 
     def get_llm_infos(llm):
         model_name = getattr(llm, 'model_name', None)

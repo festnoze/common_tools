@@ -56,7 +56,6 @@ class ai:
         return datetime.now() - start_time > timedelta(seconds= ai.max_allowed_run_seconds(assistant_set))
     
     def run(assistant_set, specific_thread_id = None, run_instructions = None):
-        sleep_interval = 2
         start_time = datetime.now()
         try:
             # create a new 'run' each time
@@ -77,7 +76,7 @@ class ai:
                 if run.status != "completed" and ai.has_allowed_time_elapsed(assistant_set, start_time):
                     return ai.RunResult.TIMEOUT
                 
-        except Exception as ex:
+        except Exception:
             return ai.RunResult.ERROR
     
     async def run_all_threads_paralell_async(assistant_set, specific_thread_ids, run_instructions = None):
@@ -107,7 +106,7 @@ class ai:
                 return ai.get_last_answer(assistant_set)
             
         if result == ai.RunResult.ERROR:
-            return  f"Error while waiting for the runner to respond" #: {ex.with_traceback}"
+            return  "Error while waiting for the runner to respond" #: {ex.with_traceback}"
         
         if result == ai.RunResult.TIMEOUT:
             return f"Runner has timeout. Took more than: {ai.max_allowed_run_seconds(assistant_set)}s. to proceed {ai.timeout_tag}"

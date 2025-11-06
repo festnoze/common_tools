@@ -73,6 +73,8 @@ extras_require = {
     'advanced': [
         'langgraph>=0.2.38',
         'langsmith>=0.1.136',
+    ],
+    'evals': [
         'ragas>=0.2.5',
     ],
 }
@@ -85,7 +87,8 @@ extras_require['full'] = (
     extras_require['qdrant'] +
     extras_require['database'] +
     extras_require['ml'] +
-    extras_require['advanced']
+    extras_require['advanced'] +
+    extras_require['evals']
 )
 
 # Support environment variable for backward compatibility and CI/CD

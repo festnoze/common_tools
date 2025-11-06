@@ -14,7 +14,7 @@ class JsonHelper:
         try:
             json.loads(json_str)
             return True
-        except json.JSONDecodeError as e:
+        except json.JSONDecodeError:
             return False
     
     def load_from_json(file_path: str, encoding='utf-8-sig'):

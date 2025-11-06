@@ -8,7 +8,6 @@ from langchain_core.documents import Document
 from langchain_core.embeddings import Embeddings
 from langchain_core.retrievers import BaseRetriever
 from langchain_core.utils import pre_init
-import numpy as np
 from pydantic import ConfigDict
 
 

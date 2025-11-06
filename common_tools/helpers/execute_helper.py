@@ -2,7 +2,7 @@ import sys
 import inspect
 from types import FunctionType
 import asyncio
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any, AsyncGenerator, Generator, Callable
 from functools import partial
 from common_tools.helpers.txt_helper import txt

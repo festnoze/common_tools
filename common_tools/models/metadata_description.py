@@ -1,5 +1,4 @@
-from pydantic import BaseModel, Field, ConfigDict
-from dataclasses import dataclass
+from pydantic import BaseModel, ConfigDict
 from typing import List, Optional
 # Inherits (kind of): from langchain.chains.query_constructor.base import AttributeInfo
 

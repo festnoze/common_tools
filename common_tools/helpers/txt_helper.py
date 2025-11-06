@@ -43,7 +43,8 @@ class txt:
     @staticmethod
     def get_elapsed_str(elapsed_sec: float) -> str:
         elapsed_str = ''
-        if not elapsed_sec: return ''
+        if not elapsed_sec:
+            return ''
         elapsed_minutes = int(elapsed_sec / 60)
         if elapsed_minutes != 0:
             elapsed_seconds = int(elapsed_sec % 60)
@@ -305,7 +306,7 @@ class txt:
         def handle_latin_encoding_str(text: str) -> str:
             try:
                 return text.replace("’", "'").replace("œ", "oe").encode('latin1').decode('utf-8')
-            except UnicodeDecodeError as e:
+            except UnicodeDecodeError:
                 return text
         return txt.apply_to_all_str(input, handle_latin_encoding_str)
     

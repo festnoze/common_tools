@@ -1,5 +1,5 @@
 from collections import defaultdict
-from typing import Optional, Union
+from typing import Union
 from common_tools.models.vector_db_type import VectorDbType
 from common_tools.models.logical_operator import LogicalOperator
 from common_tools.models.metadata_description import MetadataDescription
@@ -11,11 +11,8 @@ from langchain_community.query_constructors.chroma import ChromaTranslator
 from langchain_community.query_constructors.qdrant import QdrantTranslator
 from langchain_community.query_constructors.pinecone import PineconeTranslator
 from langchain_core.structured_query import (
-    Comparator,
     Comparison,
     Operation,
-    Operator,
-    StructuredQuery,
     Visitor,
 )
 
@@ -112,7 +109,8 @@ class RagFilteringMetadataHelper:
         :param metadata_key: The key under which metadata is stored (used by QdrantTranslator).
         :return: A dictionary representing the translated filter for the specified database.
         """
-        if not vector_db_type: raise ValueError("vector_db_type must be specified")
+        if not vector_db_type:
+            raise ValueError("vector_db_type must be specified")
         if langchain_filters is None:
             return None
 

@@ -36,7 +36,8 @@ pip install -e .[pinecone]      # Pinecone vector DB (requires C++ redistributab
 pip install -e .[qdrant]        # Qdrant vector DB
 pip install -e .[database]      # SQLite + PostgreSQL support
 pip install -e .[ml]            # scikit-learn, scipy, pandas
-pip install -e .[advanced]      # langgraph, langsmith, ragas
+pip install -e .[advanced]      # langgraph, langsmith
+pip install -e .[ragas]         # ragas
 pip install -e .[full]          # All optional dependencies
 
 # Multiple features

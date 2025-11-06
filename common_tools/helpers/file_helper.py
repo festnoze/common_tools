@@ -13,7 +13,7 @@ from common_tools.helpers.txt_helper import txt
 class file:
 
     @staticmethod
-    def get_as_str(filename:str, encoding='utf-8-sig', remove_comments= False):
+    def get_as_str(filename:str, encoding='utf-8-sig', remove_comments= False) -> str | None:
         """
         Get the specified file content as string (removing '//' commented lines)
 
@@ -244,7 +244,6 @@ class file:
         - If the result is a reserved name (CON, PRN, AUX, NUL, COM1-9, LPT1-9), appends an underscore.
         - If the result is empty, returns a default name.
         """
-        import re
         # Remove invalid characters: < > : " / \ | ? *
         sanitized_filename = re.sub(r'[<>:"/\\|?*]', '', text_to_filename)
         

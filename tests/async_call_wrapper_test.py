@@ -1,7 +1,6 @@
 import asyncio
 import pytest
 import time
-import threading
 from concurrent.futures import ThreadPoolExecutor
 from common_tools.helpers.async_call_wrapper import AsyncCallWrapper
 
@@ -72,7 +71,7 @@ class TestAsyncCallWrapper:
         
         try:
             # Start the loop
-            future = loop.run_until_complete(asyncio.sleep(0))
+            loop.run_until_complete(asyncio.sleep(0))
             
             # Now call our function which will use nest_asyncio
             result = run_in_loop()

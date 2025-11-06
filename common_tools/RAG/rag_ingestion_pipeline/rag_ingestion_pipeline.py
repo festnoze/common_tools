@@ -9,17 +9,24 @@ import logging
 from typing import TYPE_CHECKING
 
 # langchain related imports
-from langchain_core.runnables import Runnable
 from langchain_core.documents import Document
 from langchain_core.embeddings import Embeddings
 from langchain_chroma import Chroma
 
+# common tools imports
+from common_tools.helpers.txt_helper import txt
+from common_tools.models.file_already_exists_policy import FileAlreadyExistsPolicy
+from common_tools.helpers.file_helper import file
+from common_tools.RAG.rag_ingestion_pipeline.sparse_vector_embedding import SparseVectorEmbedding
+from common_tools.RAG.rag_service import RagService
+from common_tools.models.vector_db_type import VectorDbType
+from common_tools.helpers.batch_helper import BatchHelper
+from common_tools.RAG.rag_ingestion_pipeline.rag_chunking import RagChunking
+from common_tools.helpers.env_helper import EnvHelper
+from common_tools.models.document_with_text import DocumentWithText
+
 # Lazy imports for optional vector databases
 if TYPE_CHECKING:
-    from langchain_qdrant import QdrantVectorStore
-    from qdrant_client import QdrantClient
-    from qdrant_client.http.models import Distance, VectorParams
-    from pinecone import Pinecone
     from langchain_pinecone import PineconeVectorStore
 
 # Lazy import helpers
@@ -45,18 +52,6 @@ def _import_pinecone():
         raise ImportError(
             "Pinecone dependencies not found. Install with: pip install common_tools[pinecone]"
         ) from e
-
-# common tools imports
-from common_tools.helpers.txt_helper import txt
-from common_tools.models.file_already_exists_policy import FileAlreadyExistsPolicy
-from common_tools.helpers.file_helper import file
-from common_tools.RAG.rag_ingestion_pipeline.sparse_vector_embedding import SparseVectorEmbedding
-from common_tools.RAG.rag_service import RagService
-from common_tools.models.vector_db_type import VectorDbType
-from common_tools.helpers.batch_helper import BatchHelper
-from common_tools.RAG.rag_ingestion_pipeline.rag_chunking import RagChunking
-from common_tools.helpers.env_helper import EnvHelper
-from common_tools.models.document_with_text import DocumentWithText
 
 class RagIngestionPipeline:
     def __init__(self, rag: RagService):
@@ -109,9 +104,12 @@ class RagIngestionPipeline:
         Returns:
             any: The database object after storing the document chunks.
         """
-        if not vector_db_type: vector_db_type = VectorDbType('chroma')
-        if not docs_chunks or len(docs_chunks) == 0: raise ValueError("No documents provided")
-        if not hasattr(self.rag_service, 'embedding') or not self.rag_service.embedding: raise ValueError("Embedding model must be specified to build vector store")
+        if not vector_db_type:
+            vector_db_type = VectorDbType('chroma')
+        if not docs_chunks or len(docs_chunks) == 0:
+            raise ValueError("No documents provided")
+        if not hasattr(self.rag_service, 'embedding') or not self.rag_service.embedding:
+            raise ValueError("Embedding model must be specified to build vector store")
         if delete_existing:
             self._reset_vectorstore(self.rag_service)        
         BM25_storage_in_db_as_sparse_vectors = EnvHelper.get_BM25_storage_as_db_sparse_vectors()
@@ -194,7 +192,8 @@ class RagIngestionPipeline:
         falls back to classic add_documents on LangChain VectorStore.
         """
         use_internal_emb: bool = EnvHelper.get_use_pinecone_internal_embedding()
-        if use_internal_emb: batch_size = 50
+        if use_internal_emb:
+            batch_size = 50
         total_elapsed_seconds: float = 0
         batches = BatchHelper.batch_split_by_count(chunks, batch_size)
 

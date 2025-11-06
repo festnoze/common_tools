@@ -1,5 +1,4 @@
 from common_tools.helpers.duration_helper import DurationHelper
-from common_tools.helpers.txt_helper import txt
 
 
 class ImportHelper:

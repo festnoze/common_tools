@@ -1,5 +1,4 @@
 from typing import Optional
-import uuid
 from uuid import UUID
 from datetime import datetime
 from common_tools.models.device_info import DeviceInfo

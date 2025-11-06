@@ -1,8 +1,7 @@
 
 import uuid
 from langchain_core.documents import Document
-from langchain.text_splitter import CharacterTextSplitter, RecursiveCharacterTextSplitter
-from langchain_community.document_loaders import TextLoader
+from langchain.text_splitter import RecursiveCharacterTextSplitter
 from common_tools.models.document_with_text import DocumentWithText
 
 class RagChunking:
@@ -66,8 +65,10 @@ class RagChunking:
         """ Splits a string into chunks of specified size with overlap. """
         start = 0
         chunks = []
-        if chunk_size <= 0: raise ValueError("chunk_size must be greater than 0.")
-        if chunk_overlap >= chunk_size: raise ValueError("chunk_overlap must be smaller than chunk_size.")
+        if chunk_size <= 0:
+            raise ValueError("chunk_size must be greater than 0.")
+        if chunk_overlap >= chunk_size:
+            raise ValueError("chunk_overlap must be smaller than chunk_size.")
 
         while start < len(content):
             end = start + chunk_size

@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import Field
 
 from common_tools.models.question_analysis_base import QuestionAnalysisBase, QuestionAnalysisBasePydantic
 

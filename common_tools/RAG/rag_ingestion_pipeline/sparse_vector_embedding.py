@@ -2,11 +2,12 @@ import os
 import numpy as np
 import pickle
 from typing import TYPE_CHECKING
-from langchain_core.documents import Document
+#
+from common_tools.helpers.file_helper import file
+from common_tools.helpers.txt_helper import txt
 
 if TYPE_CHECKING:
-    from sklearn.feature_extraction.text import TfidfVectorizer
-    from scipy.sparse import csr_matrix
+    pass
 
 # Lazy import helper
 def _import_ml_dependencies():
@@ -20,10 +21,6 @@ def _import_ml_dependencies():
             "ML dependencies (scikit-learn, scipy) not found. "
             "Install with: pip install common_tools[ml]"
         ) from e
-
-#
-from common_tools.helpers.file_helper import file
-from common_tools.helpers.txt_helper import txt
 
 class SparseVectorEmbedding:
     vectorizer = None  # Will be TfidfVectorizer instance
@@ -63,8 +60,10 @@ class SparseVectorEmbedding:
 
     def create_new_vectorizer(self):
         """ Create a new vectorizer (remove the existing *.pkl file if exists). """
-        if SparseVectorEmbedding.vectorizer: return
-        if not SparseVectorEmbedding.file_base_path: raise ValueError("SparseVectorEmbedding.file_base_path is not set. Please set it before creating the vectorizer.")
+        if SparseVectorEmbedding.vectorizer:
+            return
+        if not SparseVectorEmbedding.file_base_path:
+            raise ValueError("SparseVectorEmbedding.file_base_path is not set. Please set it before creating the vectorizer.")
         filepath = os.path.join(SparseVectorEmbedding.file_base_path, SparseVectorEmbedding.sparse_vectorizer_filename)
 
         TfidfVectorizer, _ = _import_ml_dependencies()

@@ -1,12 +1,8 @@
 from typing import Callable, Union, Awaitable
 #
 from langchain_core.structured_query import (
-    Comparator,
     Comparison,
     Operation,
-    Operator,
-    StructuredQuery,
-    Visitor,
 )
 #
 from common_tools.helpers.execute_helper import Execute
@@ -67,10 +63,10 @@ class RAGPreTreatment:
 
         # interupt pipeline if no RAG is needed
         if question_rewritting.question_type == 'salutations':
-            txt.print(f'> Salutations detected, ending pipeline')
+            txt.print('> Salutations detected, ending pipeline')
             raise GreetingsEndsPipelineException()
         elif question_rewritting.question_type == 'fin_echange':
-            txt.print(f"> Fin d'échange detected, ending pipeline")
+            txt.print("> Fin d'échange detected, ending pipeline")
             raise EndMessageEndsPipelineException()
         return question_rewritting
 
@@ -101,10 +97,10 @@ class RAGPreTreatment:
 
         # interupt pipeline if no RAG is needed
         if question_rewritting.question_type == 'salutations':
-            txt.print(f'> Salutations detected, ending pipeline')
+            txt.print('> Salutations detected, ending pipeline')
             raise GreetingsEndsPipelineException()
         elif question_rewritting.question_type == 'fin_echange':
-            txt.print(f"> Fin d'échange detected, ending pipeline")
+            txt.print("> Fin d'échange detected, ending pipeline")
             raise EndMessageEndsPipelineException()
         return question_rewritting
 
@@ -169,7 +165,7 @@ class RAGPreTreatment:
     @staticmethod    
     @workflow_output('analysed_query') #todo: to replace with above
     async def bypassed_query_translation_async(rag:RagService, query:Union[str, Conversation]) -> QuestionTranslation:
-        user_query = Conversation.get_query(query)
+        Conversation.get_query(query)
         question_analysis = QuestionTranslation(query, query, 'request', 'french')
         return question_analysis
 
@@ -225,7 +221,7 @@ class RAGPreTreatment:
             if validated_metadata_filters_str != metadata_filters_to_validate_str:
                 txt.print(f"> Corrected metadata filters: '{str(validated_metadata_filters)}'")
             else:
-                txt.print(f">>> Metadata filters validated without errors. <<<")
+                txt.print(">>> Metadata filters validated without errors. <<<")
                 
             return validated_metadata_filters
         except Exception as e:

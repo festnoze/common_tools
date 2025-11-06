@@ -1,11 +1,11 @@
 from datetime import datetime
-from typing import Optional, Union
+from typing import Union
 import uuid
 from uuid import UUID
 from common_tools.models.message import Message
 from langchain.schema.messages import HumanMessage, AIMessage, SystemMessage
 from langchain.memory import ConversationBufferMemory
-from langchain_core.messages.base import BaseMessage, BaseMessageChunk
+from langchain_core.messages.base import BaseMessage
 
 from common_tools.models.user import User
 
@@ -60,7 +60,8 @@ class Conversation:
     def conversation_history_as_str(query_or_conv: Union[str, 'Conversation'], include_current_user_query = True) -> str:
         if isinstance(query_or_conv, Conversation):
             conversation_history = '\n- '.join([f"{msg.role}: {msg.content}" for msg in query_or_conv.messages[:-1]])
-            if not conversation_history: conversation_history = "No history yet"
+            if not conversation_history:
+                conversation_history = "No history yet"
             full_question = f"### Conversation history: ###\n{conversation_history}\n"
             if include_current_user_query:
                 full_question += f"\n###User current question: ###\n {query_or_conv.last_message.content}" 
@@ -72,7 +73,8 @@ class Conversation:
     def user_queries_history_as_str(query_or_conv: Union[str, 'Conversation']) -> str:
         if isinstance(query_or_conv, Conversation):
             conversation_history = '\n- '.join([f"- {msg.content}" for msg in [query for query in query_or_conv.messages[:-1] if query.role == 'user']])
-            if not conversation_history: conversation_history = "No history yet"
+            if not conversation_history:
+                conversation_history = "No history yet"
             full_question = f"### User queries history: ###\n{conversation_history}\n\n### User current question: ###\n {query_or_conv.last_message.content}" 
         else:
             full_question = query_or_conv

@@ -1,5 +1,5 @@
 import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 from langchain_chroma import Chroma
 from langchain_core.documents import Document
 from common_tools.RAG.rag_inference_pipeline.rag_inference_pipeline import RagInferencePipeline

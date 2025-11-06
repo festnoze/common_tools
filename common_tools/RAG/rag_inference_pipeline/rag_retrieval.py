@@ -5,15 +5,10 @@ from langchain_core.documents import Document
 from langchain.retrievers import EnsembleRetriever
 from langchain_community.retrievers import BM25Retriever
 from langchain.retrievers import ContextualCompressionRetriever
-from langchain.retrievers.document_compressors import LLMChainExtractor
 from langchain.retrievers.document_compressors import LLMChainFilter
 from langchain_core.structured_query import (
-        Comparator,
         Comparison,
         Operation,
-        Operator,
-        StructuredQuery,
-        Visitor,
 )
 
 # internal common tools imports
@@ -35,7 +30,8 @@ from common_tools.RAG.rag_inference_pipeline.custom_pinecone_hybrid_retriever im
 class RagRetrieval:
     @staticmethod    
     async def hybrid_retrieval_langchain_async(rag: RagService, analysed_query: QuestionAnalysisBase, metadata_filters: Optional[Union[Operation, Comparison]], include_bm25_retrieval: bool = True, include_contextual_compression: bool = False, include_semantic_retrieval: bool = True, give_score: bool = True, max_retrived_count: int = 20, bm25_ratio: float = 0.2):
-        if metadata_filters and not any(metadata_filters): metadata_filters = None
+        if metadata_filters and not any(metadata_filters):
+            metadata_filters = None
         do_hybrid_retrieval = include_bm25_retrieval and include_semantic_retrieval
         is_pinecone_hybrid_db = do_hybrid_retrieval and rag.vector_db_type == VectorDbType.Pinecone and EnvHelper.get_BM25_storage_as_db_sparse_vectors() and EnvHelper.get_is_common_db_for_sparse_and_dense_vectors()
         
@@ -139,8 +135,11 @@ class RagRetrieval:
             raise ValueError(f"No retriever has been defined in '{RagRetrieval.hybrid_retrieval_langchain_async.__name__}'.")
 
         weights = []
-        if include_semantic_retrieval: weights.append(semantic_k_ratio)
-        if include_bm25_retrieval: weights.append(bm25_ratio)
+        if include_semantic_retrieval:
+            weights.append(semantic_k_ratio)
+        if include_bm25_retrieval:
+            weights.append(bm25_ratio)
+
         ensemble_retriever = EnsembleRetriever(retrievers=retrievers, weights=weights)
 
         if include_contextual_compression: # move to a separate workflow step?

@@ -2,9 +2,10 @@ import logging
 from typing import Union, TYPE_CHECKING
 from pydantic import BaseModel, Field
 from langchain_core.documents import Document
+from common_tools.models.document_with_text import DocumentWithText
 
 if TYPE_CHECKING:
-    import pandas as pd
+    pass
 
 def _import_pandas():
     """Lazy import for pandas."""
@@ -15,10 +16,6 @@ def _import_pandas():
         raise ImportError(
             "Pandas not found. Install with: pip install common_tools[ml]"
         ) from e
-
-#
-from common_tools.helpers.txt_helper import txt
-from common_tools.models.document_with_text import DocumentWithText
 
 class Question:
     def __init__(self, text: str = ''):

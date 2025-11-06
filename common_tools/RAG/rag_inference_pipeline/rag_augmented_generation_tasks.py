@@ -1,6 +1,4 @@
-import asyncio
-from typing import Optional, Union
-from langchain_core.documents import Document
+from typing import Union
 from langchain_core.runnables import Runnable, RunnablePassthrough
 from langchain_core.prompts import ChatPromptTemplate
 #

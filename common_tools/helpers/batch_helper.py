@@ -1,6 +1,6 @@
 import json
 import sys
-from typing import Generator, Union
+from typing import Union
 from common_tools.helpers.txt_helper import txt
 
 class BatchHelper:

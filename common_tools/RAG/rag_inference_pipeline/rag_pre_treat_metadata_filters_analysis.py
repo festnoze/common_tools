@@ -1,4 +1,3 @@
-from collections import defaultdict
 import json
 from typing import Optional, Union
 from langchain_community.query_constructors.chroma import ChromaTranslator
@@ -6,7 +5,6 @@ from langchain_community.query_constructors.qdrant import QdrantTranslator
 from langchain_community.query_constructors.pinecone import PineconeTranslator
 from langchain.retrievers.self_query.base import SelfQueryRetriever
 from langchain.chains.query_constructor.base import StructuredQueryOutputParser, get_query_constructor_prompt
-from langchain_core.documents import Document
 from langchain.chains.query_constructor.base import AttributeInfo
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import RunnablePassthrough
@@ -58,7 +56,7 @@ class RagPreTreatMetadataFiltersAnalysis:
         metadata_descriptions_pydantic = [metadata_description.to_pydantic() for metadata_description in metadata_descriptions]
         prompt = RagPreTreatMetadataFiltersAnalysis._get_query_constructor_prompt_custom(document_description, metadata_descriptions_pydantic)
         output_parser = StructuredQueryOutputParser.from_components()
-        promptlate = ChatPromptTemplate.from_template(prompt)
+        ChatPromptTemplate.from_template(prompt)
         query_constructor = prompt | llm | output_parser | RunnablePassthrough()
         return query_constructor    
     
@@ -81,10 +79,7 @@ class RagPreTreatMetadataFiltersAnalysis:
         # Convert metadata descriptions to a JSON-like structure
         attributes = {}
         for meta in metadata_descriptions:
-            attr = {
-                "description": meta.description,
-                "type": meta.type
-            }
+            pass
 
         data_source = {
             "content": document_description,

@@ -8,7 +8,6 @@ from common_tools.helpers.file_helper import file
 from common_tools.models.llm_info import LlmInfo
 from common_tools.models.vector_db_type import VectorDbType
 from common_tools.models.embedding_model import EmbeddingModel
-from common_tools.models.langchain_adapter_type import LangChainAdapterType
 
 class EnvHelper:
     is_env_loaded = False
@@ -43,7 +42,7 @@ class EnvHelper:
 
     @staticmethod
     def get_openrouter_base_url():
-        return EnvHelper.get_env_variable_value_by_name('OPENROUTER_BASE_URL')
+        return EnvHelper.get_env_variable_value_by_name('OPENROUTER_BASE_URL') or "https://openrouter.ai/api/v1"
     
     @staticmethod
     def get_embedding_model() -> EmbeddingModel:
@@ -108,15 +107,15 @@ class EnvHelper:
     @staticmethod
     def get_llms_infos_from_env_config(skip_commented_lines:bool = True) -> list[LlmInfo]:
         yaml_env_variables = EnvHelper._get_llm_env_variables(skip_commented_lines)
-        if not 'Llms_Temperature' in yaml_env_variables:
-            raise ValueError("Missing 'Llms_Temperature' key in the yaml environment file")
+        if 'Llms_Temperature' not in yaml_env_variables:
+            yaml_env_variables['Llms_Temperature'] = 0.7
         llms_temp = yaml_env_variables['Llms_Temperature']
-        if not 'Llm_infos' in yaml_env_variables:
+        if 'Llms_order' not in yaml_env_variables:
+            yaml_env_variables['Llms_order'] = [1, 2, 3]
+        llms_order = yaml_env_variables['Llms_order']
+        if 'Llm_infos' not in yaml_env_variables:
             raise ValueError("Missing 'Llm_infos' key in the yaml environment file")
         llms_list = yaml_env_variables['Llm_infos']
-        if not 'Llms_order' in yaml_env_variables:
-            raise ValueError("Missing 'Llms_order' key in the yaml environment file")
-        llms_order = yaml_env_variables['Llms_order']
 
         # Re-order llms based on specified order
         try:
@@ -178,7 +177,8 @@ class EnvHelper:
     @staticmethod
     def _get_custom_env_files_names() -> list[str]:
         custom_env_files = EnvHelper._get_custom_env_files()
-        if not custom_env_files: return []
+        if not custom_env_files:
+            return []
         return [filename.strip() for filename in custom_env_files.split(",")]
 
     @staticmethod

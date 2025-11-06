@@ -1,8 +1,6 @@
 import os
 import logging
-from typing import Union
 from langchain_core.documents import Document
-from common_tools.helpers.txt_helper import txt
 from common_tools.helpers.file_helper import file
 from common_tools.helpers.env_helper import EnvHelper
 from common_tools.models.doc_w_summary_chunks_questions import DocWithSummaryChunksAndQuestions

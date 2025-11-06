@@ -12,7 +12,7 @@ class RAGPostTreatment:
 
     @staticmethod
     def response_post_treatment(guardrails_result: bool, rag_answer: list[str], analysed_query: QuestionTranslation):
-        if guardrails_result == True:
+        if guardrails_result:
             if isinstance(rag_answer, list):
                 return rag_answer[0]
             else:

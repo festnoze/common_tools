@@ -1,22 +1,21 @@
 import asyncio
 import json
 import time
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 import inspect
 from typing import AsyncGenerator, TypeVar, Union
 
 from langchain_core.language_models.chat_models import BaseChatModel
-from langchain_core.output_parsers import StrOutputParser, ListOutputParser, MarkdownListOutputParser, JsonOutputParser, BaseTransformOutputParser
-from langchain_core.runnables import Runnable, RunnableParallel, RunnableSequence
+from langchain_core.output_parsers import JsonOutputParser, BaseTransformOutputParser
+from langchain_core.runnables import Runnable, RunnableParallel
 from langchain.chains.base import Chain
-from langchain.agents import AgentExecutor, initialize_agent, create_tool_calling_agent, create_json_chat_agent, tool
+from langchain.agents import AgentExecutor, create_tool_calling_agent, create_json_chat_agent
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_community.callbacks import get_openai_callback, OpenAICallbackHandler
-from langchain.schema.messages import HumanMessage, AIMessage, SystemMessage, FunctionMessage
+from langchain.schema.messages import HumanMessage, BaseMessage
+from langchain_core.callbacks import BaseCallbackHandler
 #
 from common_tools.helpers.txt_helper import txt
-from common_tools.models.langchain_adapter_type import LangChainAdapterType
-from common_tools.helpers.execute_helper import Execute
 
 class Llm:
     # Constants 
@@ -62,7 +61,8 @@ class Llm:
     
     @staticmethod
     async def invoke_chain_with_input_async(action_name: str = "", chain: Chain = None, input: dict = None) -> list[str]:       
-        if not input: input = {"input": ""}
+        if not input:
+            input = {"input": ""}
         chain_w_config = chain.with_config({"run_name": f"{action_name}"})
         return await chain_w_config.ainvoke(input)  
      
@@ -76,10 +76,15 @@ class Llm:
         """Invoke LLM in parallel, w/o output parser, nor batching (fallbacks possible)"""
         return await Llm.invoke_parallel_prompts_with_parser_batchs_fallbacks_async(action_name, llms_with_fallbacks, None, None, *prompts)
    
-    # @staticmethod
-    # def invoke_parallel_prompts_with_parser_batchs_fallbacks(action_name: str, llms_with_fallbacks: Union[Runnable, list[Runnable]], output_parser: BaseTransformOutputParser, batch_size: int = None, *prompts: Union[str, ChatPromptTemplate]) -> list[str]:
-    #     return Execute.async_wrapper_to_sync(Llm.invoke_parallel_prompts_with_parser_batchs_fallbacks_async, action_name, llms_with_fallbacks, output_parser, batch_size, *prompts)
-    
+    @staticmethod
+    async def invoke_prompt_async(action_name: str, llm: Runnable, prompt: Union[str, list[BaseMessage], ChatPromptTemplate]) -> str:
+        """Invoke single LLM w/o output parser, nor batching, nor parallel multiple prompts, nor fallbacks"""
+
+        if isinstance(prompt, list) and isinstance(prompt[0], BaseMessage):
+            prompt = ChatPromptTemplate.from_messages(prompt)
+        answers = await Llm.invoke_parallel_prompts_async(action_name, [llm], *[prompt])
+        return answers[0]
+
     @staticmethod
     async def invoke_parallel_prompts_with_parser_batchs_fallbacks_async(action_name: str, llms_with_fallbacks: Union[Runnable, list[Runnable]], output_parser: BaseTransformOutputParser, batch_size: int = None, *prompts: Union[str, ChatPromptTemplate]) -> list[str]:
         if len(prompts) == 0:
@@ -91,14 +96,16 @@ class Llm:
             # create chain out of str prompt transformed to  ChatPromptTemplate and specified LLM
             chain = Llm.prompt_as_chat_prompt_template(prompt) | llms_with_fallbacks[0]
             # add output parser to the chain if specified
-            if output_parser: chain = chain | output_parser
+            if output_parser:
+                chain = chain | output_parser
 
             # add fallbacks to the chain if more than one LLMs are specified
             if len(llms_with_fallbacks) > 1:
                 fallback_chains = []
                 for llm_for_fallback in llms_with_fallbacks[1:]:
                     fallback_chain = Llm.prompt_as_chat_prompt_template(prompt) | llm_for_fallback
-                    if output_parser: fallback_chain = fallback_chain | output_parser
+                    if output_parser:
+                        fallback_chain = fallback_chain | output_parser
                     fallback_chains.append(fallback_chain)
                 chain = chain.with_fallbacks(fallback_chains)
             chains.append(chain)
@@ -156,7 +163,7 @@ class Llm:
     @staticmethod
     async def invoke_json_llm_with_tools_async(llm_or_chain: Runnable, tools: list[any], input: str) -> str:
         #prompt = hub.pull("hwchase17/openai-tools-agent")
-        prompt = ChatPromptTemplate.from_messages(
+        ChatPromptTemplate.from_messages(
             [
                 ("system", "You're a helpful AI assistant. You know which tools use to solve the given user problem."),
                 ("human", "{input}"),
@@ -170,11 +177,11 @@ class Llm:
         return Llm.get_content(res)
     
     @staticmethod
-    async def invoke_as_async_stream(action_name:str, llm_or_chain: Runnable, input, content_chunks:list[str] = None, does_stream_across_http: bool = False):
+    async def invoke_as_async_stream(action_name:str, llm_or_chain: Runnable, input, content_chunks: list[str] | None = None, does_stream_across_http: bool = False, callback_handlers: list[BaseCallbackHandler] = []):
         has_content_prop:bool = None
         llm_or_chain_w_config = llm_or_chain.with_config({"run_name": f"{action_name}"})
 
-        async for chunk in llm_or_chain_w_config.astream(input):
+        async for chunk in llm_or_chain_w_config.astream(input, config = {'callbacks': callback_handlers}):
             # Analyse specific stream structure upon first chunk: Handle both OpenAI & Ollama types
             # Not use Llm.get_content() method to avoid to check upon each chunks
             if not has_content_prop:
@@ -273,7 +280,7 @@ class Llm:
         txt.print("Token consumption:")
         txt.print(f"Input prompt: {Llm.format_number(cb.prompt_tokens)}")
         txt.print(f"rewritting: + {Llm.format_number(cb.rewritting_tokens)}")    
-        txt.print(f"            " + "-" * max_len)
+        txt.print("            " + "-" * max_len)
         txt.print(f"Total tokens: {Llm.format_number(cb.total_tokens)}")
         txt.print(f"Total cost:   {cost_eur:.3f}€ ({cb.total_cost:.3f}$)")
         if cb.total_tokens != 0:

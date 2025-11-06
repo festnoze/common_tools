@@ -1,7 +1,6 @@
 import importlib.resources
 import re
 import yaml
-from common_tools.helpers.txt_helper import txt
 from common_tools.helpers.file_helper import file
 
 class Ressource:    

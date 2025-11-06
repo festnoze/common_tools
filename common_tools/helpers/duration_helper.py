@@ -7,7 +7,8 @@ class DurationHelper:
     def print_import_duration(import_statement: str, import_description: str = None, print_threshold: float = None) -> float:
         duration = DurationHelper.get_import_duration(import_statement)
         if duration and (not print_threshold or duration >= print_threshold):
-            if not import_description: import_description = import_statement
+            if not import_description:
+                import_description = import_statement
             max_blanks = 100
             blanks = " " * (max_blanks - len(import_description)) if len(import_description) < max_blanks else ""
             #
@@ -30,7 +31,8 @@ class DurationHelper:
         start = time.time()
         last_slash_index = max(file_path.rfind('/'), file_path.rfind('\\'))
         last_dot_index = file_path.rfind('.')
-        if last_dot_index == -1: last_dot_index = len(file_path)
+        if last_dot_index == -1:
+            last_dot_index = len(file_path)
 
         txt.print(f"\r\r\n## Analyzing duration for all imports from file: '{file_path[last_slash_index + 1:last_dot_index]}' ##")
         
@@ -48,7 +50,8 @@ class DurationHelper:
                 # Split by commas
                 modules = [m.strip() for m in imports_str.split(",")]
                 for module in modules:
-                    if not module: continue
+                    if not module:
+                        continue
                     import_statement = f"import {module}"
                     import_desc = f"{module} (full)"
                     DurationHelper.print_import_duration(import_statement, import_desc, print_threshold)

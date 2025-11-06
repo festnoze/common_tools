@@ -1,4 +1,4 @@
-from typing import Any, Literal
+from typing import Literal
 from typing import Optional
 
 class DocumentWithText():
