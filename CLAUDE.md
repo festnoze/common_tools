@@ -38,7 +38,8 @@ pip install -e .[database]      # SQLite + PostgreSQL support
 pip install -e .[ml]            # scikit-learn, scipy, pandas
 pip install -e .[advanced]      # langgraph, langsmith
 pip install -e .[ragas]         # ragas
-pip install -e .[full]          # All optional dependencies
+pip install -e .[dev]           # Development tools (pytest, build tools)
+pip install -e .[full]          # All optional dependencies including dev tools
 
 # Multiple features
 pip install -e .[pinecone,database,ml,advanced]
@@ -88,6 +89,26 @@ pytest tests/ -v
 # Run specific test method
 pytest tests/workflow_executor_test.py::TestWorkflowExecutor::test_execute_workflow_single_step
 ```
+
+### VS Code Test Discovery
+
+To enable test discovery in VS Code:
+
+1. **Install dev dependencies** (includes pytest):
+   ```bash
+   pip install -e .[dev]
+   ```
+
+2. **Select the virtual environment Python interpreter** in VS Code:
+   - Press `Ctrl+Shift+P` (or `Cmd+Shift+P` on Mac)
+   - Type "Python: Select Interpreter"
+   - Choose the interpreter from `senv/Scripts/python.exe` (Windows) or `senv/bin/python` (Linux/Mac)
+
+3. **Reload VS Code window** to refresh test discovery:
+   - Press `Ctrl+Shift+P` (or `Cmd+Shift+P` on Mac)
+   - Type "Developer: Reload Window"
+
+The `.vscode/settings.json` file is already configured with the correct pytest settings.
 
 ## Code Architecture
 

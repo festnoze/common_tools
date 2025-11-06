@@ -77,6 +77,12 @@ extras_require = {
     'evals': [
         'ragas>=0.2.5',
     ],
+    # Development dependencies
+    'dev': [
+        'pytest>=7.0.0',
+        'pytest-asyncio>=0.21.0',
+        'build>=0.10.0',
+    ],
 }
 
 # Convenience groups
@@ -88,7 +94,8 @@ extras_require['full'] = (
     extras_require['database'] +
     extras_require['ml'] +
     extras_require['advanced'] +
-    extras_require['evals']
+    extras_require['evals'] +
+    extras_require['dev']
 )
 
 # Support environment variable for backward compatibility and CI/CD
